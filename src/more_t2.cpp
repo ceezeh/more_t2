@@ -15,7 +15,7 @@ using namespace cv;
 using ARToolKitPlus::TrackerSingleMarker;
 
 
-int artest();
+int artest(unsigned char* cameraBuffer, const int width, const int height);
 
 
 // Standard C++ entry point
@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
 
   	ros::Rate loop_rate(10);
 
-    VideoCapture cap("/home/parallels/catkin_ws/src/more_t2/videos/cube_left.avi"); // open the video file for reading
+    VideoCapture cap("/home/parallels/catkin_ws/src/more_t2/videos/test1.mov"); // open the video file for reading
 
     if ( !cap.isOpened() )  // if not success, exit program
     {
@@ -43,8 +43,10 @@ int main(int argc, char** argv) {
     //cap.set(CV_CAP_PROP_POS_MSEC, 300); //start the video at 300ms
 
     double fps = cap.get(CV_CAP_PROP_FPS); //get the frames per seconds of the video
+    const int width = cap.get(CV_CAP_PROP_FRAME_WIDTH);
+    const int height = cap.get(CV_CAP_PROP_FRAME_HEIGHT);
 
-     cout << "Frame per seconds : " << fps << endl;
+    cout << "Frame per seconds : " << fps << endl;
 
     namedWindow("MyVideo",CV_WINDOW_AUTOSIZE); //create a window called "MyVideo"
 
@@ -61,7 +63,8 @@ int main(int argc, char** argv) {
         }
 
         imshow("MyVideo", frame); //show the frame in "MyVideo" window
-        artest();
+        imdecode(frame, CV_LOAD_IMAGE_GRAYSCALE, &frame);
+        artest(frame.data, width, height);
         if(waitKey(30) == 27) //wait for 'esc' key press for 30 ms. If 'esc' key is pressed, break loop
        	{
                 cout << "esc key is pressed by user" << endl; 
@@ -79,14 +82,14 @@ int main(int argc, char** argv) {
 }
 
 
-int artest() {
+int artest(unsigned char* cameraBuffer, const int width, const int height) {
     // switch this between true and false to test
     // simple-id versus BCH-id markers
     const bool useBCH = false;
 
-    const int width = 320, height = 240, bpp = 1;
+    const int bpp = 1;
     size_t numPixels = width * height * bpp;
-    size_t numBytesRead;
+    /*size_t numBytesRead;
     const char *fName = useBCH ? "/home/parallels/catkin_ws/src/more_t2/data/image_320_240_8_marker_id_bch_nr0100.raw"
             : "/home/parallels/catkin_ws/src/more_t2/data/image_320_240_8_marker_id_simple_nr031.raw";
 
@@ -108,7 +111,7 @@ int artest() {
         ROS_INFO("Failed to read %s\n", fName);
         return -1;
     }
-
+*/
     // create a tracker that does:
     //  - 6x6 sized marker images (required for binary markers)
     //  - samples at a maximum of 6x6
@@ -151,16 +154,17 @@ int artest() {
     // glLoadMatrixf(tracker.getProjectionMatrix());
 
     // here we go, just two calls to find the camera pose
-    std::vector<int> markerId = tracker.calc(cameraBuffer);
+    vector<int> markerId = tracker.calc(cameraBuffer);
+
     tracker.selectBestMarkerByCf();
     float conf = tracker.getConfidence();
 
     // use the result of calc() to setup the OpenGL transformation
     // glMatrixMode(GL_MODELVIEW)
     // glLoadMatrixf(tracker.getModelViewMatrix());
-
-    ROS_INFO("\n\nFound marker %d  (confidence %d%%)\n\nPose-Matrix:\n  ", markerId[0], (int(conf * 100.0f)));
+    // printf("\n\nFound marker  (confidence %d)\n\nPose-Matrix:\n  ", (int(conf * 100.0f)));
     for (int i = 0; i < 16; i++)
-        ROS_INFO("%.2f  %s", tracker.getModelViewMatrix()[i], (i % 4 == 3) ? "\n  " : "");
+        printf("%.2f  %s", tracker.getModelViewMatrix()[i], (i % 4 == 3) ? "\n  " : "");
     return 0;
+
 }
