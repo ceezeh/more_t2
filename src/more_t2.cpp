@@ -20,7 +20,7 @@ TrackerMultiMarker tracker(width, height, 8, 6, 6, 6, 0);
 
 // Standard C++ entry point
 
-int initialiseTracker() {
+int configTracker() {
 	tracker.setPixelFormat(ARToolKitPlus::PIXEL_FORMAT_LUM);
 
 	// load a camera file.
@@ -59,11 +59,10 @@ int main(int argc, char** argv) {
 
 	ros::Rate loop_rate(10);
 	printf("EST!!!");
-	if (initialiseTracker() != 0)
+	if (configTracker() != 0)
 		return 0;
 
 	IplImage *greyImg = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 1);
-	//IplImage *tempImg = cvCreateImage( cvSize(width, height), IPL_DEPTH_8U, 1 );
 	IplImage *tempImg2 = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 1);
 	IplImage* img;
 	CvCapture* capture = cvCaptureFromCAM(0);
@@ -82,18 +81,14 @@ int main(int argc, char** argv) {
 		// Crop the image to a proportion of 320 by 240.
 		cvSetImageROI(img, cvRect(0, 0, 640, 480));
 
-		IplImage *tmp = cvCreateImage(cvGetSize(img), img->depth,
-				img->nChannels);
-
-		cvCopy(img, tmp, NULL);
 		printf("Orig size %d:%d", img->width, img->height);
-		IplImage *tempImg = cvCreateImage(cvGetSize(tmp), tmp->depth, 1);
-		cvCvtColor(tmp, tempImg, CV_RGB2GRAY);
-		cvResize(tempImg, tempImg2);
+		IplImage *tempImg = cvCreateImage(cvGetSize(img), img->depth, 1);
+		cvCvtColor(img, tempImg, CV_RGB2GRAY);
+		cvResize(tempImg, greyImg);
 
 //		cvThreshold(tempImg2, greyImg, (float) 70, 255.0, CV_THRESH_BINARY);
-		cvShowImage("MyVideo", tempImg2);
-		cvWaitKey(10);
+		cvShowImage("MyVideo", greyImg);
+		cvWaitKey(10); // Wait for image to be rendered on screen. If not included, no image is shown.
 		int numDetected = tracker.calc((unsigned char*) tempImg2->imageData);
 		if (numDetected != 0) {
 			printf(
