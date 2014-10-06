@@ -53,9 +53,16 @@ int configTracker() {
 }
 
 void calcPoseMatrix(TrackerMultiMarker* t, Mat* pose) {
-	const ARFloat* tf = t->getModelViewMatrix();
-	Mat A = Mat(4, 4, CV_32FC1, (float *)tf);
-//	cout <<"[Debug] A= " << A.t() <<endl;
+	ARToolKitPlus::ARMarkerInfo markerInfo = t->getDetectedMarker(0);
+	ARFloat nOpenGLMatrix[16];
+	ARFloat markerWidth = 102;
+	ARFloat patternCentre[2] = {0.0f,0.0f};
+	t->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth, nOpenGLMatrix);
+
+
+//	const ARFloat* tf = t->getModelViewMatrix();
+	Mat A = Mat(4, 4, CV_32FC1, (float *)nOpenGLMatrix);
+	cout <<"[Debug] A= " << A.t() <<endl;
 	*pose  = A.t() * centreMat;
 	cout << "pose = "<< endl << *pose << endl << endl;
 }
@@ -82,7 +89,7 @@ void drawGraphs(Mat pose) {
 		pointer = 0;
 		initialiseCanvas();
 	}
-	float ycoord = height/2 - pose.at<float>(0,0)*height/400; // For x represent 40 cm in a whole.
+	float ycoord = height/2 - pose.at<float>(1,0)*height/400; // For x represent 40 cm in a whole.
 	cout << "ycoord"<< ycoord << endl << endl;
 	circle( canvas, Point( pointer, ycoord), 1.0, Scalar( 0, 255, 0 ) );
 	// Use currently increment pixel points by increment frame.
@@ -105,7 +112,7 @@ int main(int argc, char** argv) {
 	IplImage *greyImg = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 1);
 	IplImage *tempImg2 = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 1);
 	IplImage* img;
-	CvCapture* capture = cvCaptureFromCAM(1);
+	CvCapture* capture = cvCaptureFromCAM(0);
 	Mat pose;
 	if (!capture) {
 		std::cout << "Could not initialize capturing...\n" << std::endl;
@@ -132,7 +139,7 @@ int main(int argc, char** argv) {
 		cvWaitKey(10); // Wait for image to be rendered on screen. If not included, no image is shown.
 		int numDetected = tracker.calc((unsigned char*) greyImg->imageData);
 		if (numDetected != 0) {
-			printf("Num = %d\n\n", numDetected);
+			printf("Number of Markers = %d\n\n", numDetected);
 			calcPoseMatrix(&tracker, &pose);
 			drawGraphs(pose);
 		}
@@ -140,7 +147,6 @@ int main(int argc, char** argv) {
 		ros::spinOnce();
 
 		loop_rate.sleep();
-
 	}
 	cvReleaseCapture(&capture);
 	return 0;
