@@ -1,0 +1,70 @@
+<launch>
+	<arg name="cam2" default="0"/>
+	<arg name="cam3" default="0"/>
+	<arg name="cam4" default="0"/>
+	<arg name="cam5" default="0"/>
+	<arg name="cam6" default="0"/>
+	
+	<node 
+		pkg="more_t2" 
+		type="camera_pose_calibration" 
+		name="cam1" 
+		output="screen" 
+		launch-prefix="xterm -e"
+		required="true"		
+	>
+		<param name="id" value="1" type="int"/>
+	</node>
+	
+	<node if="$(arg cam2)" 
+		pkg="more_t2" 
+		type="camera_pose_calibration" 
+		name="cam2" 
+		output="screen" 
+		launch-prefix="xterm -e"
+	>
+		<param name="id" value="2" type="int"/>
+	</node>
+	
+	<node if="$(arg cam3)" 
+		pkg="more_t2" 
+		type="camera_pose_calibration" 
+		name="cam3" 
+		output="screen" 
+		launch-prefix="xterm -e"
+	>
+		<param name="id" value="3" type="int"/>
+	</node>
+	
+	<node if="$(arg cam4)" 
+		pkg="more_t2" 
+		type="camera_pose_calibration" 
+		name="cam4" 
+		output="screen" 
+		launch-prefix="xterm -e"
+	>
+		<param name="id" value="4" type="int"/>
+	</node>
+	
+	<node if="$(arg cam5)" 
+		pkg="more_t2" 
+		type="camera_pose_calibration" 
+		name="cam5" 
+		output="screen" 
+		launch-prefix="xterm -e"
+	>
+		<param name="id" value="5" type="int"/>
+	</node>
+	
+	<node if="$(arg cam6)" 
+		pkg="more_t2" 
+		type="camera_pose_calibration" 
+		name="cam56" 
+		output="screen" 
+		launch-prefix="xterm -e"
+	>
+		<param name="id" value="6" type="int"/>
+	</node>
+	
+</launch>
+
