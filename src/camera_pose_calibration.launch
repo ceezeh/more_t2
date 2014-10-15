@@ -18,6 +18,16 @@
 		<param name="pose" value="$(arg cam0_pose)" type="str"/>
 	</node>
 	
+	<node if="$(arg cam1)" 
+		pkg="more_t2" 
+		type="camera_pose_calibration" 
+		name="cam1" 
+		output="screen" 
+	>
+		<param name="id" value="1" type="int"/>
+	</node>
+	
+	
 	<node if="$(arg cam2)" 
 		pkg="more_t2" 
 		type="camera_pose_calibration" 
@@ -56,16 +66,6 @@
 		launch-prefix="xterm -e"
 	>
 		<param name="id" value="5" type="int"/>
-	</node>
-	
-	<node if="$(arg cam1)" 
-		pkg="more_t2" 
-		type="camera_pose_calibration" 
-		name="cam1" 
-		output="screen" 
-		launch-prefix="xterm -e"
-	>
-		<param name="id" value="1" type="int"/>
 	</node>
 	
 </launch>

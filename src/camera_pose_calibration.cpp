@@ -48,7 +48,7 @@ Mat centreMat = (Mat_<float>(4, 1) << 0, 0, 0, 1);
 // the pylon runtime system is initialized during the lifetime of this object.
 Pylon::PylonAutoInitTerm autoInitTerm;
 CInstantCamera camera;
-
+CGrabResultPtr ptrGrabResult;
 //Debug variable
 bool camInitialise = false;
 //bool isCalibrated()
@@ -102,7 +102,7 @@ int initialiseCam(int deviceNum = 0)
       if (tlFactory.EnumerateDevices(devices) == 0)
       {
         throw RUNTIME_EXCEPTION( "No camera present.");
-        return -1;
+        exit (EXIT_FAILURE);
       }
 
       // Todo change this to correct id value
@@ -111,12 +111,14 @@ int initialiseCam(int deviceNum = 0)
       // Print the model name of the camera.
       cout << "Using device " << camera.GetDeviceInfo().GetModelName() << endl;
       camInitialise = true;
+      // Start camera grabbing
+      camera.StartGrabbing(GrabStrategy_LatestImageOnly);
     }
     catch (GenICam::GenericException &e)
     {
       // Error handling
       cerr << "An exception occurred." << endl << e.GetDescription() << endl;
-      return 1;
+      exit (EXIT_FAILURE);
     }
   }
 
@@ -126,14 +128,27 @@ int initialiseCam(int deviceNum = 0)
 void initFrameSize()
 {
   // Write a function to open camera
-  IplImage *img = cvQueryFrame(capture);
-  if (!img)
+  if (id == 0)
   {
-    printf("Failed to open image from capture device");
-    return;
+    IplImage *img = cvQueryFrame(capture);
+    if (!img)
+    {
+      printf("Failed to open image from capture device");
+      exit (EXIT_FAILURE);
+    }
+    width = img->width;
+    height = img->height;
   }
-  width = img->width;
-  height = img->height;
+  else
+  {
+    camera.RetrieveResult(500, ptrGrabResult, TimeoutHandling_ThrowException);
+    if (ptrGrabResult->GrabSucceeded())
+    {
+      width = ptrGrabResult->GetWidth();
+      height = ptrGrabResult->GetHeight();
+      cout << "width" << width << endl;
+    }
+  }
 }
 
 int configTracker()
@@ -148,7 +163,7 @@ int configTracker()
                      "/home/ceezeh/local/tools/ARToolKitPlus-2.3.0/sample/data/markerboard_480-499.cfg", 1.0f, 1000.0f)) // load MATLAB file
   {
     ROS_INFO("ERROR: init() failed\n");
-    return -1;
+    exit (EXIT_FAILURE);
   }
 
   tracker->getCamera()->printSettings();
@@ -174,10 +189,8 @@ void initialisation()
   // Initialise Capturing Device.
 
   initialiseCam(id);
-if (id == 0) {
   initFrameSize();
   configTracker();
-}
 }
 void calcMarkerPose(TrackerMultiMarker* tracker_t, Mat* pose)
 {
@@ -190,18 +203,28 @@ void calcMarkerPose(TrackerMultiMarker* tracker_t, Mat* pose)
   Mat T = Mat(4, 4, CV_32FC1, (float *)nOpenGLMatrix);
   cout << "[Debug] T'= " << T.t() << endl;
   *pose = ((Mat)(T.t() * centreMat)).rowRange(0, 3);
-  *pose += cam_pose;
+//  *pose += cam_pose;
   cout << "pose = " << endl << *pose << endl << endl;
 }
 
 void processMarkerPoseImg(IplImage *img, Mat *pose_t)
 {
+  int numDetected = 0;
+  if (id == 0) {
   IplImage *tempImg = cvCreateImage(cvSize(width, height), img->depth, 1);
   IplImage *greyImg = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 1);
   cvCvtColor(img, tempImg, CV_RGB2GRAY);
   cvAdaptiveThreshold(tempImg, greyImg, 255.0, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 111);
-  cvWaitKey(10); // Wait for image to be rendered on screen. If not included, no image is shown.
-  int numDetected = tracker->calc((unsigned char*)greyImg->imageData);
+  numDetected = tracker->calc((unsigned char*)greyImg->imageData);
+  }
+//  cvShowImage("Proof2", greyImg);
+//  cvWaitKey(10); // Wait for image to be rendered on screen. If not included, no image is shown.
+
+  else {
+    numDetected = tracker->calc((unsigned char*)img->imageData);
+  }
+
+
   if (numDetected != 0)
   {
     printf("Number of Markers = %d\n\n", numDetected);
@@ -213,6 +236,10 @@ void processMarkerPoseImg(IplImage *img, Mat *pose_t)
     pose.vector.z = pose_t->at<float>(0, 2);
     markerPose_pub.publish(pose);
   }
+}
+void processCameraPoseImg(IplImage *img, Mat *pose_t)
+{
+
 }
 
 int calibrateCam()
@@ -232,6 +259,8 @@ int main(int argc, char** argv)
 
   // The pose of the initial camera.
   Mat marker_pose;
+
+  //Pylon stuff
 
   // Initialise all global variables.
   initialisation();
@@ -255,6 +284,9 @@ int main(int argc, char** argv)
   }
 
   IplImage* img;
+  if (id != 0) {
+    img = cvCreateImageHeader(cvSize(width, height), IPL_DEPTH_8U, 1);
+  }
   while (ros::ok())
   {
     // Debug prints.
@@ -269,19 +301,32 @@ int main(int argc, char** argv)
         break;
       }
     }
+    else
+    { // Use a pylon interface.
+
+
+      camera.RetrieveResult(1000, ptrGrabResult, TimeoutHandling_ThrowException);
+      if (ptrGrabResult->GrabSucceeded())
+      {
+        cvSetData(img, (uint8_t*)ptrGrabResult->GetBuffer(), ptrGrabResult->GetWidth());
+        cvShowImage("Proof2", img);
+        cvWaitKey(10); // Wait for image to be rendered on screen. If not included, no image is shown.
+      }
+    }
 
     if (camInitialise)
     {
       printf("Cam:%d initialised\n\n", id);
     }
-    if (isCalibrated)
+    if (1)
     { // If camera's position is known then start publishing marker position
       // publish marker pose.
-      if (id == 0)
-      processMarkerPoseImg(img, &marker_pose); // Gets Tracking info from image.
+//      if (id == 0)
+        processMarkerPoseImg(img, &marker_pose); // Gets Tracking info from image.
     }
     else
-    { // Derive Camera's position
+    { // Derive Camera's position from marker image.
+      processCameraPoseImg(img, &cam_pose);
 
     }
 
