@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  geometry_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -163,18 +164,17 @@ include_directories(
 # catkin_add_nosetests(test)
 find_package(OpenCV)
 
-
 # Additional Linker flags for pylon
-SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall")
+SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -DUSE_GIGE")
 SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -Wl,-E")
 #  Link pylon libraries
+include_directories(include ${catkin_INCLUDE_DIRS} ~/local/tools/pylon-4.0.0.62-x86_64/pylon4/include ~/local/tools/pylon-4.0.0.62-x86_64/pylon4/genicam/library/CPP/include)
 link_directories(~/local/tools/pylon-4.0.0.62-x86_64/pylon4/lib64  ~/local/tools/pylon-4.0.0.62-x86_64/pylon4/genicam/bin/Linux64_x64  ~/local/tools/pylon-4.0.0.62-x86_64/pylon4/genicam/bin/Linux64_x64/GenApi/Generic)
-include_directories(include ${catkin_INCLUDE_DIRS})
 
 add_executable(more_t2 src/more_t2.cpp)
-target_link_libraries(more_t2 ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/lib/libARToolKitPlus.so pylonbase)
+target_link_libraries(more_t2 ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/lib/libARToolKitPlus.so /home/ceezeh/local/tools/pylon-4.0.0.62-x86_64/pylon4/genicam/bin/Linux64_x64/libGCBase_gcc40_v2_3.so pylonbase pylonutility)
 add_dependencies(more_t2 ${catkin_EXPORTED_TARGETS})
 
 add_executable(camera_pose_calibration src/camera_pose_calibration.cpp)
-target_link_libraries(camera_pose_calibration ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/lib/libARToolKitPlus.so pylonbase)
+target_link_libraries(camera_pose_calibration ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/lib/libARToolKitPlus.so /home/ceezeh/local/tools/pylon-4.0.0.62-x86_64/pylon4/genicam/bin/Linux64_x64/libGCBase_gcc40_v2_3.so pylonbase pylonutility)
 add_dependencies(camera_pose_calibration ${catkin_EXPORTED_TARGETS})
