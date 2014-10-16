@@ -64,7 +64,7 @@ void calcPoseMatrix(TrackerMultiMarker* tracker_t, Mat* pose, Mat* T)
   *T =Mat(4, 4, CV_32FC1, (float *)nOpenGLMatrix);
   cout << "[Debug] T'= " << T->t() << endl;
   *pose = ((Mat)(T->t() * centreMat)).rowRange(0,3);
-  *pose += cam1pos;
+//  *pose += cam1pos;
   cout << "pose = " << endl << *pose << endl << endl;
 }
 // Write pose to file.

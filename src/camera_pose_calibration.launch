@@ -1,5 +1,5 @@
 <launch>
-	<arg name="cam0_pose" default="1 2 3"/>
+	<arg name="cam0_pose" default="0 0 0"/>
 	<arg name="cam1" default="0"/>
 	<arg name="cam2" default="0"/>
 	<arg name="cam3" default="0"/>
@@ -23,6 +23,7 @@
 		type="camera_pose_calibration" 
 		name="cam1" 
 		output="screen" 
+		
 	>
 		<param name="id" value="1" type="int"/>
 	</node>

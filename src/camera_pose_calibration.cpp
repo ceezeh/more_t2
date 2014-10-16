@@ -33,14 +33,16 @@ using namespace cv;
 using namespace Pylon;
 using ARToolKitPlus::TrackerMultiMarker;
 
-int id = 0;
+int id = 1;
 int width;
 int height;
-bool isCalibrated = false;
+bool cameraPoseKnown = false;
 CvCapture* capture = NULL;
 TrackerMultiMarker *tracker;
 ros::Publisher markerPose_pub;
 Mat cam_pose;
+// The pose of the initial camera.
+Mat marker_pose;
 Mat centreMat = (Mat_<float>(4, 1) << 0, 0, 0, 1);
 
 //Pylon variables.
@@ -51,6 +53,12 @@ CInstantCamera camera;
 CGrabResultPtr ptrGrabResult;
 //Debug variable
 bool camInitialise = false;
+bool newMarker = false;
+
+
+
+ ros::Subscriber markerPose_sub;
+
 //bool isCalibrated()
 //{
 //
@@ -77,7 +85,8 @@ bool camInitialise = false;
 //  return true;
 //}
 
-int initialiseCam(int deviceNum = 0)
+// Fail program if cam is not initialised
+void initialiseCam(int deviceNum = 0)
 {
   // temp solution
   if (id == 0)
@@ -87,8 +96,9 @@ int initialiseCam(int deviceNum = 0)
     if (!capture)
     {
       std::cout << "Could not initialize capturing...\n" << std::endl;
-      return -1;
+      exit (EXIT_FAILURE);
     }
+    camInitialise = true;
   }
   else
   {
@@ -118,11 +128,10 @@ int initialiseCam(int deviceNum = 0)
     {
       // Error handling
       cerr << "An exception occurred." << endl << e.GetDescription() << endl;
-      exit (EXIT_FAILURE);
+      exit(EXIT_FAILURE);
     }
   }
 
-  return 0;
 }
 
 void initFrameSize()
@@ -134,7 +143,7 @@ void initFrameSize()
     if (!img)
     {
       printf("Failed to open image from capture device");
-      exit (EXIT_FAILURE);
+      exit(EXIT_FAILURE);
     }
     width = img->width;
     height = img->height;
@@ -163,7 +172,7 @@ int configTracker()
                      "/home/ceezeh/local/tools/ARToolKitPlus-2.3.0/sample/data/markerboard_480-499.cfg", 1.0f, 1000.0f)) // load MATLAB file
   {
     ROS_INFO("ERROR: init() failed\n");
-    exit (EXIT_FAILURE);
+    exit(EXIT_FAILURE);
   }
 
   tracker->getCamera()->printSettings();
@@ -192,74 +201,111 @@ void initialisation()
   initFrameSize();
   configTracker();
 }
-void calcMarkerPose(TrackerMultiMarker* tracker_t, Mat* pose)
+
+// Updates and publishes marker pose.
+void publishMarkerPose()
 {
-  ARToolKitPlus::ARMarkerInfo markerInfo = tracker_t->getDetectedMarker(0);
+  ARToolKitPlus::ARMarkerInfo markerInfo = tracker->getDetectedMarker(0);
   ARFloat nOpenGLMatrix[16];
   ARFloat markerWidth = 102;
   ARFloat patternCentre[2] = {0.0f, 0.0f};
-  tracker_t->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth, nOpenGLMatrix);
-
+  tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth, nOpenGLMatrix);
   Mat T = Mat(4, 4, CV_32FC1, (float *)nOpenGLMatrix);
-  cout << "[Debug] T'= " << T.t() << endl;
-  *pose = ((Mat)(T.t() * centreMat)).rowRange(0, 3);
-//  *pose += cam_pose;
-  cout << "pose = " << endl << *pose << endl << endl;
+      cout << "[Debug] T'= " << endl << T.t() << endl << endl;
+
+  cout << "[Debug 2] T'= " << endl << T.t() << endl << endl;
+  Mat pose_t = ((Mat)(T.t() * centreMat)).rowRange(0, 3);
+//  pose_t += cam_pose;
+  cout << "pose = " << endl << pose_t << endl << endl;
+
+  geometry_msgs::Vector3Stamped pose;
+  pose.header.stamp = ros::Time().now();
+  pose.vector.x = pose_t.at<float>(0, 0);
+  pose.vector.y = pose_t.at<float>(0, 1);
+  pose.vector.z = pose_t.at<float>(0, 2);
+  markerPose_pub.publish(pose);
 }
 
-void processMarkerPoseImg(IplImage *img, Mat *pose_t)
+// Get transformation matrix from camera to marker.
+// Returns true if a new transformation matrix was obtained.
+bool processMarkerImg(IplImage *img)
 {
   int numDetected = 0;
-  if (id == 0) {
-  IplImage *tempImg = cvCreateImage(cvSize(width, height), img->depth, 1);
   IplImage *greyImg = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 1);
-  cvCvtColor(img, tempImg, CV_RGB2GRAY);
-  cvAdaptiveThreshold(tempImg, greyImg, 255.0, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 111);
-  numDetected = tracker->calc((unsigned char*)greyImg->imageData);
+  if (id == 0)
+  {
+    IplImage *tempImg = cvCreateImage(cvSize(width, height), img->depth, 1);
+    IplImage *greyImg = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 1);
+    cvCvtColor(img, tempImg, CV_RGB2GRAY);
+    cvAdaptiveThreshold(tempImg, greyImg, 255.0, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 111);
+    numDetected = tracker->calc((unsigned char*)greyImg->imageData);
   }
 //  cvShowImage("Proof2", greyImg);
 //  cvWaitKey(10); // Wait for image to be rendered on screen. If not included, no image is shown.
-
-  else {
-    numDetected = tracker->calc((unsigned char*)img->imageData);
+  else
+  {
+    cvAdaptiveThreshold(img, greyImg, 255.0, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 111);
+    numDetected = tracker->calc((unsigned char*)greyImg->imageData);
   }
-
 
   if (numDetected != 0)
   {
     printf("Number of Markers = %d\n\n", numDetected);
-    calcMarkerPose(tracker, pose_t);
-    geometry_msgs::Vector3Stamped pose;
-    pose.header.stamp = ros::Time().now();
-    pose.vector.x = pose_t->at<float>(0, 0);
-    pose.vector.y = pose_t->at<float>(0, 1);
-    pose.vector.z = pose_t->at<float>(0, 2);
-    markerPose_pub.publish(pose);
+
+    return true;
+  }
+  return false;
+}
+
+void getCameraPose(Mat* marker_pose_t)
+{
+  ARToolKitPlus::ARMarkerInfo markerInfo = tracker->getDetectedMarker(0);
+  ARFloat nOpenGLMatrix[16];
+  ARFloat markerWidth = 102;
+  ARFloat patternCentre[2] = {0.0f, 0.0f};
+  tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth, nOpenGLMatrix);
+  Mat T = Mat(4, 4, CV_32FC1, (float *)nOpenGLMatrix);
+  cout << "[Debug]: T = " << endl << T << endl << endl;
+  Mat T_t = (Mat(((Mat)(T.inv())).t()));
+  cout << "[Debug]: T_t = " << endl << T_t << endl << endl;
+  Mat mpose_t;
+  mpose_t.create(4,1, CV_32FC1);
+  mpose_t.at<float>(0,0) = marker_pose_t->at<float>(0,0);
+  mpose_t.at<float>(1,0) = marker_pose_t->at<float>(0,0);
+  mpose_t.at<float>(2,0) = marker_pose_t->at<float>(0,0);
+  mpose_t.at<float>(3,0) = 1;
+  cam_pose = (Mat(T_t * mpose_t)).rowRange(0, 3);;
+  cout << "[Debug] cam_pose'= " << endl << cam_pose << endl << endl;
+  cameraPoseKnown = true;
+  newMarker = false;
+}
+
+void markerPoseCallback(const geometry_msgs::Vector3Stamped & msg)
+{
+  ros::Duration timeout(0, 100000000); // 100 milli second.
+  if ((ros::Time::now() - msg.header.stamp) < timeout)
+  {
+    marker_pose.at<float>(0, 0) = msg.vector.x;
+    marker_pose.at<float>(0, 1) = msg.vector.y;
+    marker_pose.at<float>(0, 2) = msg.vector.z;
+    newMarker = true;
+    cout << "New marker!" << endl;
   }
 }
-void processCameraPoseImg(IplImage *img, Mat *pose_t)
-{
 
-}
-
-int calibrateCam()
-{
-
-}
 int main(int argc, char** argv)
 {
   ros::init(argc, argv, "cam1");
 
   ros::NodeHandle n("~");
   ros::Rate loop_rate(10);
-
-  markerPose_pub = n.advertise<geometry_msgs::Vector3Stamped>("markerpose", 1000);
+  bool pubsubToggle = false;
 
   n.getParam("id", id);
-
-  // The pose of the initial camera.
-  Mat marker_pose;
-
+  markerPose_sub = n.subscribe("/global/markerpose", 2, markerPoseCallback);
+  Mat T;
+  T.create(4,4, CV_32FC1);
+  marker_pose.create(3,1, CV_32FC1);;
   //Pylon stuff
 
   // Initialise all global variables.
@@ -275,16 +321,12 @@ int main(int argc, char** argv)
     stream << pose_s;
     stream >> x >> y >> z;
     cam_pose = (Mat_<float>(3, 1) << x, y, z);
-    isCalibrated = true;
+    cameraPoseKnown = true;
   }
 
-  if (isCalibrated)
+  IplImage* img = NULL;
+  if (id != 0)
   {
-    printf("Camera: %d is being re-calibrated\n\n", id);
-  }
-
-  IplImage* img;
-  if (id != 0) {
     img = cvCreateImageHeader(cvSize(width, height), IPL_DEPTH_8U, 1);
   }
   while (ros::ok())
@@ -293,47 +335,67 @@ int main(int argc, char** argv)
 //    printf("id: %d \n", id);
     if (id == 0) // Only try to output marker's global pose. No need to try to get camera's pose.
     {
-      cout << "main_cam_pose" << endl << cam_pose << endl << endl;
       img = cvQueryFrame(capture);
       if (!img)
       {
-        printf("Failed to open file");
-        break;
+        ROS_INFO("ERROR: files to grab new image\n");
+        exit(EXIT_FAILURE);
       }
     }
     else
     { // Use a pylon interface.
-
-
       camera.RetrieveResult(1000, ptrGrabResult, TimeoutHandling_ThrowException);
       if (ptrGrabResult->GrabSucceeded())
       {
         cvSetData(img, (uint8_t*)ptrGrabResult->GetBuffer(), ptrGrabResult->GetWidth());
         cvShowImage("Proof2", img);
         cvWaitKey(10); // Wait for image to be rendered on screen. If not included, no image is shown.
+      } else {
+        ROS_INFO("ERROR: files to grab new image\n");
+                exit(EXIT_FAILURE);
       }
     }
+
+    bool newResult = processMarkerImg(img); // Get transformation matrix from new result.
 
     if (camInitialise)
     {
       printf("Cam:%d initialised\n\n", id);
     }
-    if (1)
-    { // If camera's position is known then start publishing marker position
+    if (cameraPoseKnown)
+    {
+      // Update PubSub
+      // Shutdown subcriber if still on and start publisher if not started
+      if (pubsubToggle == false) {
+        markerPose_pub = n.advertise<geometry_msgs::Vector3Stamped>("/global/markerpose", 2);
+        markerPose_sub.shutdown();
+        pubsubToggle = true;
+      }
+
+      // If camera's position is known then start publishing marker position
       // publish marker pose.
 //      if (id == 0)
-        processMarkerPoseImg(img, &marker_pose); // Gets Tracking info from image.
+      cout << "cam_pose" << endl << cam_pose << endl << endl;
+      if (newResult)
+        publishMarkerPose();
     }
     else
     { // Derive Camera's position from marker image.
-      processCameraPoseImg(img, &cam_pose);
-
+      cout << "Unknown Cam Pose" << endl;
+      if (newResult && newMarker){
+        cout << "Getting cam pose" << endl;
+        getCameraPose( &marker_pose);
+      }
     }
+    // Update pub sub
 
     // If this camera is calibrated, then send the position of the marker as ROS message.
     // To do this, first tracker marker and report its position.
 
-    ros::spinOnce();
+    // If camera's pose is not known then we need to check for new marker positions.
+
+      ros::spinOnce();
+
     loop_rate.sleep();
   }
 }
