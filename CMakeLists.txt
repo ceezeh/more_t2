@@ -178,3 +178,7 @@ add_dependencies(more_t2 ${catkin_EXPORTED_TARGETS})
 add_executable(camera_pose_calibration src/camera_pose_calibration.cpp)
 target_link_libraries(camera_pose_calibration ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/lib/libARToolKitPlus.so /home/ceezeh/local/tools/pylon-4.0.0.62-x86_64/pylon4/genicam/bin/Linux64_x64/libGCBase_gcc40_v2_3.so pylonbase pylonutility)
 add_dependencies(camera_pose_calibration ${catkin_EXPORTED_TARGETS})
+
+add_executable(recorder src/recorder.cpp)
+target_link_libraries(recorder ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/lib/libARToolKitPlus.so /home/ceezeh/local/tools/pylon-4.0.0.62-x86_64/pylon4/genicam/bin/Linux64_x64/libGCBase_gcc40_v2_3.so pylonbase pylonutility)
+add_dependencies(recorder ${catkin_EXPORTED_TARGETS})

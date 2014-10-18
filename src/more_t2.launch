@@ -5,22 +5,36 @@
 	<arg name="cam3" default="0"/>
 	<arg name="cam4" default="0"/>
 	<arg name="cam5" default="0"/>
-	
+	<arg name="max_no_of_cams" default="6"/>
 	<node 
 		pkg="more_t2" 
-		type="camera_pose_calibration" 
-		name="cam0" 
+		type="more_t2" 
+		name="pose_gen" 
 		output="screen" 
-		
 		required="true"		
 	>
+		<param name="cam0" value="$(arg cam0)" type="int"/>
+		<param name="cam1" value="$(arg cam1)" type="int"/>
+		<param name="cam2" value="$(arg cam2)" type="int"/>
+		<param name="cam3" value="$(arg cam3)" type="int"/>
+		<param name="cam4" value="$(arg cam4)" type="int"/>
+		<param name="cam5" value="$(arg cam5)" type="int"/>
+	</node>
+ 
+ <!--<group>
+	<node 
+		pkg="more_t2" 
+		type="recorder" 
+		name="cam0" 
+		output="screen" 
+		launch-prefix="xterm -e"
+	>
 		<param name="id" value="0" type="int"/>
-		<param name="pose" value="$(arg cam0_pose)" type="str"/>
 	</node>
 	
 	<node if="$(arg cam1)" 
 		pkg="more_t2" 
-		type="camera_pose_calibration" 
+		type="recorder"  
 		name="cam1" 
 		output="screen" 
 		launch-prefix="xterm -e"
@@ -31,7 +45,7 @@
 	
 	<node if="$(arg cam2)" 
 		pkg="more_t2" 
-		type="camera_pose_calibration" 
+		type="recorder"  
 		name="cam2" 
 		output="screen" 
 		launch-prefix="xterm -e"
@@ -41,7 +55,7 @@
 	
 	<node if="$(arg cam3)" 
 		pkg="more_t2" 
-		type="camera_pose_calibration" 
+		type="recorder" 
 		name="cam3" 
 		output="screen" 
 		launch-prefix="xterm -e"
@@ -51,7 +65,7 @@
 	
 	<node if="$(arg cam4)" 
 		pkg="more_t2" 
-		type="camera_pose_calibration" 
+		type="recorder" 
 		name="cam4" 
 		output="screen" 
 		launch-prefix="xterm -e"
@@ -61,13 +75,15 @@
 	
 	<node if="$(arg cam5)" 
 		pkg="more_t2" 
-		type="camera_pose_calibration" 
+		type="recorder" 
 		name="cam5" 
 		output="screen" 
 		launch-prefix="xterm -e"
 	>
 		<param name="id" value="5" type="int"/>
 	</node>
-	
+
+	</group>
+	-->
 </launch>
 

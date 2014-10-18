@@ -33,7 +33,7 @@ using namespace cv;
 using namespace Pylon;
 using ARToolKitPlus::TrackerMultiMarker;
 
-int id = 1;
+int id = 0;
 int width;
 int height;
 bool cameraPoseKnown = false;
@@ -51,64 +51,26 @@ Mat centreMat = (Mat_<float>(4, 1) << 0, 0, 0, 1);
 Pylon::PylonAutoInitTerm autoInitTerm;
 CInstantCamera camera;
 CGrabResultPtr ptrGrabResult;
+
 //Debug variable
 bool camInitialise = false;
 bool newMarker = false;
 
 
+ros::Subscriber markerPose_sub;
 
- ros::Subscriber markerPose_sub;
 
-//bool isCalibrated()
-//{
-//
-//  if (id == 0)
-//  {
-//    return true;
-//  }
-//  ifstream file;
-//  stringstream sbuffer;
-//  string filepath = "../cfg/cfg_";
-//  sbuffer << filepath << id;
-//  file.open((const string)(sbuffer.str()), ios::in);
-//  if (!file.is_open())
-//  {
-//    printf("Error! Camera not yet Calibrated");
-//    return false;
-//  }
-//  /*
-//   * Configuration data is of the form:
-//   * ip:
-//   * poseData:
-//   */
-//  file.close();
-//  return true;
-//}
 
 // Fail program if cam is not initialised
 void initialiseCam(int deviceNum = 0)
 {
-  // temp solution
-  if (id == 0)
-  { // we will use an OpenCV capture
-    capture = cvCaptureFromCAM(deviceNum);
-    printf("Opening device number : %d", deviceNum);
-    if (!capture)
-    {
-      std::cout << "Could not initialize capturing...\n" << std::endl;
-      exit (EXIT_FAILURE);
-    }
-    camInitialise = true;
-  }
-  else
-  {
+
     try
     {
       // assign camera no to a full name.
       CTlFactory& tlFactory = CTlFactory::GetInstance();
-
-      // Get all attached devices and exit application if no device is found.
       DeviceInfoList_t devices;
+      // Get all attached devices and exit application if no device is found.
       if (tlFactory.EnumerateDevices(devices) == 0)
       {
         throw RUNTIME_EXCEPTION( "No camera present.");
@@ -116,7 +78,7 @@ void initialiseCam(int deviceNum = 0)
       }
 
       // Todo change this to correct id value
-      camera.Attach(tlFactory.CreateDevice(devices[id - 1]));
+      camera.Attach(tlFactory.CreateDevice(devices[deviceNum]));
 
       // Print the model name of the camera.
       cout << "Using device " << camera.GetDeviceInfo().GetModelName() << endl;
@@ -130,34 +92,20 @@ void initialiseCam(int deviceNum = 0)
       cerr << "An exception occurred." << endl << e.GetDescription() << endl;
       exit(EXIT_FAILURE);
     }
-  }
-
 }
 
 void initFrameSize()
 {
-  // Write a function to open camera
-  if (id == 0)
-  {
-    IplImage *img = cvQueryFrame(capture);
-    if (!img)
-    {
-      printf("Failed to open image from capture device");
-      exit(EXIT_FAILURE);
-    }
-    width = img->width;
-    height = img->height;
-  }
-  else
-  {
     camera.RetrieveResult(500, ptrGrabResult, TimeoutHandling_ThrowException);
     if (ptrGrabResult->GrabSucceeded())
     {
       width = ptrGrabResult->GetWidth();
       height = ptrGrabResult->GetHeight();
       cout << "width" << width << endl;
+    } else {
+      ROS_INFO("ERROR: Could not grab a frame\n");
+          exit(EXIT_FAILURE);
     }
-  }
 }
 
 int configTracker()
@@ -232,21 +180,9 @@ bool processMarkerImg(IplImage *img)
 {
   int numDetected = 0;
   IplImage *greyImg = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 1);
-  if (id == 0)
-  {
-    IplImage *tempImg = cvCreateImage(cvSize(width, height), img->depth, 1);
-    IplImage *greyImg = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 1);
-    cvCvtColor(img, tempImg, CV_RGB2GRAY);
-    cvAdaptiveThreshold(tempImg, greyImg, 255.0, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 111);
-    numDetected = tracker->calc((unsigned char*)greyImg->imageData);
-  }
-//  cvShowImage("Proof2", greyImg);
-//  cvWaitKey(10); // Wait for image to be rendered on screen. If not included, no image is shown.
-  else
-  {
+
     cvAdaptiveThreshold(img, greyImg, 255.0, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 111);
     numDetected = tracker->calc((unsigned char*)greyImg->imageData);
-  }
 
   if (numDetected != 0)
   {
@@ -293,6 +229,44 @@ void markerPoseCallback(const geometry_msgs::Vector3Stamped & msg)
   }
 }
 
+void writeCalibrationToFile() {
+  // Here we save the id, device fullname and camera pose
+    ofstream file;
+    stringstream sbuffer;
+    string filepath = "/home/ceezeh/catkin_ws/src/more_t2/cfg/cfg_";
+    sbuffer << filepath << id;
+    file.open((const string)(sbuffer.str()), ios::out|ios::trunc);
+    if (!file.is_open())
+    {
+      cout << "Error! Cannot open file to save Calibration" << endl;
+      exit(EXIT_FAILURE);
+    }
+    /*
+     * Configuration data is of the form:
+     * ip:
+     * poseData:
+     */
+
+
+
+    CTlFactory& tlFactory = CTlFactory::GetInstance();
+          DeviceInfoList_t devices;
+          // Get all attached devices and exit application if no device is found.
+          if (tlFactory.EnumerateDevices(devices) == 0)
+               {
+                 throw RUNTIME_EXCEPTION( "No camera present.");
+                 exit (EXIT_FAILURE);
+               }
+
+    cout << "Writing to file!" << endl;
+    file << devices[id].GetFullName() << "\n"; // fullname
+    file << cam_pose.at<float>(0,0) << "\n";  // x
+    file << cam_pose.at<float>(1,0) << "\n";  // y
+    file << cam_pose.at<float>(2,0) << "\n";  // z
+    file.close();
+    cout << "Written to file!" << endl;
+}
+
 int main(int argc, char** argv)
 {
   ros::init(argc, argv, "cam1");
@@ -305,7 +279,7 @@ int main(int argc, char** argv)
   markerPose_sub = n.subscribe("/global/markerpose", 2, markerPoseCallback);
   Mat T;
   T.create(4,4, CV_32FC1);
-  marker_pose.create(3,1, CV_32FC1);;
+  marker_pose.create(3,1, CV_32FC1);
   //Pylon stuff
 
   // Initialise all global variables.
@@ -322,28 +296,14 @@ int main(int argc, char** argv)
     stream >> x >> y >> z;
     cam_pose = (Mat_<float>(3, 1) << x, y, z);
     cameraPoseKnown = true;
+    writeCalibrationToFile();
   }
 
-  IplImage* img = NULL;
-  if (id != 0)
-  {
-    img = cvCreateImageHeader(cvSize(width, height), IPL_DEPTH_8U, 1);
-  }
+  IplImage* img = cvCreateImageHeader(cvSize(width, height), IPL_DEPTH_8U, 1);
+
   while (ros::ok())
   {
-    // Debug prints.
-//    printf("id: %d \n", id);
-    if (id == 0) // Only try to output marker's global pose. No need to try to get camera's pose.
-    {
-      img = cvQueryFrame(capture);
-      if (!img)
-      {
-        ROS_INFO("ERROR: files to grab new image\n");
-        exit(EXIT_FAILURE);
-      }
-    }
-    else
-    { // Use a pylon interface.
+ // Use a pylon interface.
       camera.RetrieveResult(1000, ptrGrabResult, TimeoutHandling_ThrowException);
       if (ptrGrabResult->GrabSucceeded())
       {
@@ -354,7 +314,6 @@ int main(int argc, char** argv)
         ROS_INFO("ERROR: files to grab new image\n");
                 exit(EXIT_FAILURE);
       }
-    }
 
     bool newResult = processMarkerImg(img); // Get transformation matrix from new result.
 
@@ -374,7 +333,6 @@ int main(int argc, char** argv)
 
       // If camera's position is known then start publishing marker position
       // publish marker pose.
-//      if (id == 0)
       cout << "cam_pose" << endl << cam_pose << endl << endl;
       if (newResult)
         publishMarkerPose();
@@ -385,6 +343,7 @@ int main(int argc, char** argv)
       if (newResult && newMarker){
         cout << "Getting cam pose" << endl;
         getCameraPose( &marker_pose);
+        writeCalibrationToFile();
       }
     }
     // Update pub sub
@@ -398,4 +357,5 @@ int main(int argc, char** argv)
 
     loop_rate.sleep();
   }
+  cvReleaseCapture(&capture);
 }
