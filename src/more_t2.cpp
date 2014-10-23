@@ -71,7 +71,19 @@ void calcPoseMatrix(TrackerMultiMarker* tracker_t, Mat* pose)
 
    Mat T = Mat(4, 4, CV_32FC1, (float *)nOpenGLMatrix);
   cout << "[Debug] T'= " << T.t() << endl;
-  *pose = ((Mat)(T.t() * centreMat)).rowRange(0, 3);
+  // Update x, y, z part of pose
+  Mat subpose = pose->rowRange(0,2);
+  Mat xyz = ((Mat)(T.t() * centreMat)).rowRange(0, 3);
+  xyz.copyTo(subpose);
+
+  // Update Orientation Part of Pose.
+  // heading = atan2(-r20,r00)
+  pose->at<float>(3,0) = atan2(-T.at<float>(2,0),T.at<float>(0,0));
+  // bank = atan2(-r12,r11)
+  pose->at<float>(4,0) = atan2(-T.at<float>(1,2), T.at<float>(1,1));
+  // attitude = asin(r10)
+  pose->at<float>(5,0) = asin(T.at<float>(1,0));
+
   *pose += cam_pose;
   cout << "pose = " << endl << *pose << endl << endl;
 }
@@ -205,6 +217,7 @@ int id = -1;
     IplImage *greyImg = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 1);
 
     Mat pose;
+    pose.create(6,1, CV_32F);
     Mat T;
     T.create(4, 4, CV_8UC(2));
 
