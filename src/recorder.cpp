@@ -70,7 +70,7 @@ void getConfig()
   stringstream sbuffer;
   string filepath = "/home/ceezeh/catkin_ws/src/more_t2/cfg/cfg_";
   sbuffer << filepath << id;
-  file.open((const string)(sbuffer.str()), ios::in);
+  file.open(sbuffer.str().c_str(), ios::in);
   if (!file.is_open())
   {
     cout << "Error! Cannot open file to save Calibration" << endl;
