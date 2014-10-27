@@ -11,13 +11,6 @@
 #include <iomanip>  // for controlling float print precision
 #include <sstream>  // string to number conversion
 #include <fstream>      // std::ofstream
-#include <pylon/PylonIncludes.h>
-#ifdef PYLON_WIN_BUILD
-#include <pylon/PylonGUI.h>
-#endif
-#include <pylon/PylonImage.h>
-#include <pylon/Pixel.h>
-#include <pylon/ImageFormatConverter.h>
 #include <cv.h>
 #include <opencv2/core/core.hpp>        // Basic OpenCV structures (cv::Mat, Scalar)
 #include <opencv2/imgproc/imgproc.hpp>  // Gaussian Blur
@@ -29,28 +22,19 @@
 
 using namespace std;
 using namespace cv;
-// Namespace for using pylon objects.
-using namespace Pylon;
 using ARToolKitPlus::TrackerMultiMarker;
 
-int id = 0;
+int id = 1;
 int width;
 int height;
 bool cameraPoseKnown = false;
-CvCapture* capture = NULL;
+VideoCapture capture;
 TrackerMultiMarker *tracker;
 ros::Publisher markerPose_pub;
 Mat cam_pose;
 // The pose of the initial camera.
 Mat marker_pose;
 Mat centreMat = (Mat_<float>(4, 1) << 0, 0, 0, 1);
-
-//Pylon variables.
-// Automagically call PylonInitialize and PylonTerminate to ensure
-// the pylon runtime system is initialized during the lifetime of this object.
-Pylon::PylonAutoInitTerm autoInitTerm;
-CInstantCamera camera;
-CGrabResultPtr ptrGrabResult;
 
 //Debug variable
 bool camInitialise = false;
@@ -64,48 +48,35 @@ ros::Subscriber markerPose_sub;
 // Fail program if cam is not initialised
 void initialiseCam(int deviceNum = 0)
 {
-
-    try
-    {
-      // assign camera no to a full name.
-      CTlFactory& tlFactory = CTlFactory::GetInstance();
-      DeviceInfoList_t devices;
-      // Get all attached devices and exit application if no device is found.
-      if (tlFactory.EnumerateDevices(devices) == 0)
-      {
-        throw RUNTIME_EXCEPTION( "No camera present.");
-        exit (EXIT_FAILURE);
-      }
-
-      // Todo change this to correct id value
-      camera.Attach(tlFactory.CreateDevice(devices[deviceNum]));
-
-      // Print the model name of the camera.
-      cout << "Using device " << camera.GetDeviceInfo().GetModelName() << endl;
-      camInitialise = true;
-      // Start camera grabbing
-      camera.StartGrabbing(GrabStrategy_LatestImageOnly);
-    }
-    catch (GenICam::GenericException &e)
-    {
-      // Error handling
-      cerr << "An exception occurred." << endl << e.GetDescription() << endl;
-      exit(EXIT_FAILURE);
-    }
+  // Write a function to open camera
+  // we will use an OpenCV capture
+     capture.open(deviceNum);
+     capture.set(CV_CAP_PROP_FRAME_WIDTH,320);
+     capture.set(CV_CAP_PROP_FRAME_HEIGHT,240);
+     printf("Opening device number : %d", deviceNum);
+     if (!capture.isOpened())
+     {
+       std::cout << "Could not initialize capturing...\n" << std::endl;
+       exit (EXIT_FAILURE);
+     }
+     camInitialise = true;
 }
 
 void initFrameSize()
 {
-    camera.RetrieveResult(500, ptrGrabResult, TimeoutHandling_ThrowException);
-    if (ptrGrabResult->GrabSucceeded())
-    {
-      width = ptrGrabResult->GetWidth();
-      height = ptrGrabResult->GetHeight();
-      cout << "width" << width << endl;
-    } else {
-      ROS_INFO("ERROR: Could not grab a frame\n");
-          exit(EXIT_FAILURE);
-    }
+    // Write a function to open camera
+     Mat frame;
+       IplImage *img;
+       capture>>frame;
+       img = cvCreateImage(cvSize(frame.cols,frame.rows), IPL_DEPTH_8U, frame.channels());
+       img->imageData = (char *)frame.data;
+       if (frame.empty())
+       {
+         printf("Failed to open image from capture device");
+         exit(EXIT_FAILURE);
+       }
+       width = img->width;
+       height = img->height;
 }
 
 int configTracker()
@@ -159,14 +130,19 @@ void publishMarkerPose()
   ARFloat patternCentre[2] = {0.0f, 0.0f};
   tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth, nOpenGLMatrix);
   Mat T = Mat(4, 4, CV_32FC1, (float *)nOpenGLMatrix);
+ // Fixing the z translation value.
+  T.at<float>(3,2) /=2;
       cout << "[Debug] T'= " << endl << T.t() << endl << endl;
       Mat pose_t;
       pose_t.create(6,1,CV_32F);
       // Update Translation part of pose of marker from camera
         Mat subpose = pose_t.rowRange(0, 3);
         Mat xyz = ((Mat)(T.t() * centreMat)).rowRange(0, 3);
+
         xyz.copyTo(subpose);
 
+        // Translation of marker from Global Frame
+        subpose += cam_pose.rowRange(0,3);
         // Calculate orientation.
 
         // Construct a rotation matrix from global to camera frame.
@@ -198,11 +174,11 @@ void publishMarkerPose()
   geometry_msgs::PoseStamped pose;
   pose.header.stamp = ros::Time().now();
   pose.pose.position.x = pose_t.at<float>(0, 0);
-  pose.pose.position.y = pose_t.at<float>(0, 1);
-  pose.pose.position.z = pose_t.at<float>(0, 2);
-  pose.pose.orientation.x = pose_t.at<float>(0, 3);
-  pose.pose.orientation.y = pose_t.at<float>(0, 3);
-  pose.pose.orientation.z = pose_t.at<float>(0, 3);
+  pose.pose.position.y = pose_t.at<float>(1, 0);
+  pose.pose.position.z = pose_t.at<float>(2, 0);
+  pose.pose.orientation.x = pose_t.at<float>(3, 0);
+  pose.pose.orientation.y = pose_t.at<float>(4, 0);
+  pose.pose.orientation.z = pose_t.at<float>(5, 0);
   markerPose_pub.publish(pose);
 }
 
@@ -211,20 +187,22 @@ void publishMarkerPose()
 bool processMarkerImg(IplImage *img)
 {
   int numDetected = 0;
-  IplImage *greyImg = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 1);
+    IplImage *greyImg = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 1);
 
-    cvAdaptiveThreshold(img, greyImg, 255.0, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY,111);
-    cvShowImage("Proof2", greyImg);
-            cvWaitKey(1); // Wait for image to be rendered on screen. If not included, no image is shown.
-    numDetected = tracker->calc((unsigned char*)greyImg->imageData);
+      IplImage *tempImg = cvCreateImage(cvSize(width, height), img->depth, 1);
+      cvCvtColor(img, tempImg, CV_RGB2GRAY);
+      cvAdaptiveThreshold(tempImg, greyImg, 255.0, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 111);
+      numDetected = tracker->calc((unsigned char*)greyImg->imageData);
+     cvShowImage("Proof2", greyImg);
+      cvWaitKey(1); // Wait for image to be rendered on screen. If not included, no image is shown.
 
-  if (numDetected != 0)
-  {
-    printf("Number of Markers = %d\n\n", numDetected);
+    if (numDetected != 0)
+    {
+      printf("Number of Markers = %d\n\n", numDetected);
 
-    return true;
-  }
-  return false;
+      return true;
+    }
+    return false;
 }
 
 void getCameraPose(Mat* marker_pose_t)
@@ -236,17 +214,38 @@ void getCameraPose(Mat* marker_pose_t)
   tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth, nOpenGLMatrix);
 
   Mat T = Mat(4, 4, CV_32FC1, (float *)nOpenGLMatrix);
+  // Fixing the z translation value.
+   T.at<float>(3,2) /=2;
   cout << "[Debug]: T' = " << endl << T.t() << endl << endl;
   Mat Tc2m = ((Mat)(T.t() * centreMat)).rowRange(0, 3);
+  cout << "[Debug]: Tc2m' = " << endl << Tc2m << endl << endl;
 
 
   // Calculate cam's translational position
-  Mat temp = marker_pose_t->rowRange(0,3) -Tc2m;
-  Mat cam_t = cam_pose.rowRange(0,3);
-  temp.copyTo(cam_t);
+  Mat temp = marker_pose_t->rowRange(0, 3) - Tc2m;
+  cout << "[Debug]: temp' = " << endl << temp << endl << endl;
+  Mat cam_trans = cam_pose.rowRange(0, 3);
+  temp.copyTo(cam_trans);
+  cout << "[Debug]: cam_trans' = " << endl << cam_trans << endl << endl;
   // Calculate cam's orientation pose.
   Mat Rc2m = T.rowRange(0,3).colRange(0,3);
-  Mat Rg2m = marker_pose_t->rowRange(3, 3);
+  cout << "[Debug]: Rc2m' = " << endl << Rc2m << endl << endl;
+  // Rg2m has to be reconstructed from marker orientation
+
+  float cosA = cos(marker_pose_t->at<float>(3,0)), sinA= sin(marker_pose_t->at<float>(3,0)),
+             cosB = cos(marker_pose_t->at<float>(4,0)), sinB= sin(marker_pose_t->at<float>(4,0)),
+             cosC = cos(marker_pose_t->at<float>(5,0)), sinC= sin(marker_pose_t->at<float>(5,0));
+         Mat Rz = (Mat_<float>(3,3) << cosC,-sinC, 0,
+                                   sinC, cosC, 0,
+                                    0, 0 , 1);
+         Mat Rx = (Mat_<float>(3,3) << 1, 0, 0,
+                                   0, cosA, -sinA,
+                                    0, sinA , cosA);
+         Mat Ry = (Mat_<float>(3,3) << cosB, 0, sinB,
+                                     0, 1, 0,
+                                   -sinB, 0, cosB);
+         Mat Rg2m = Rz*Rx*Ry;
+
  Mat Rg2c = Rc2m.inv() *Rg2m;
   // Roll A
   cam_pose.at<float>(3, 0) = asin(Rg2c.at<float>(2, 1));
@@ -294,19 +293,7 @@ void writeCalibrationToFile() {
      * poseData:
      */
 
-
-
-    CTlFactory& tlFactory = CTlFactory::GetInstance();
-          DeviceInfoList_t devices;
-          // Get all attached devices and exit application if no device is found.
-          if (tlFactory.EnumerateDevices(devices) == 0)
-               {
-                 throw RUNTIME_EXCEPTION( "No camera present.");
-                 exit (EXIT_FAILURE);
-               }
-
     cout << "Writing to file!" << endl;
-    file << devices[id].GetFullName() << "\n"; // fullname
     file << cam_pose.at<float>(0,0) << "\n";  // x
     file << cam_pose.at<float>(1,0) << "\n";  // y
     file << cam_pose.at<float>(2,0) << "\n";  // z
@@ -329,7 +316,8 @@ int main(int argc, char** argv)
   markerPose_sub = n.subscribe("/global/markerpose", 2, markerPoseCallback);
   Mat T;
   T.create(4,4, CV_32FC1);
-  marker_pose.create(3,1, CV_32FC1);
+  marker_pose.create(6,1, CV_32FC1);
+  cam_pose.create(6,1,CV_32F);
   //Pylon stuff
 
   // Initialise all global variables.
@@ -349,19 +337,22 @@ int main(int argc, char** argv)
     writeCalibrationToFile();
   }
 
-  IplImage* img = cvCreateImageHeader(cvSize(width, height), IPL_DEPTH_8U, 1);
+  Mat temp;
+        capture.read(temp);
+        IplImage* img  = cvCreateImage(cvSize(temp.cols,temp.rows), IPL_DEPTH_8U, temp.channels());
 
   while (ros::ok())
   {
  // Use a pylon interface.
-      camera.RetrieveResult(1000, ptrGrabResult, TimeoutHandling_ThrowException);
-      if (ptrGrabResult->GrabSucceeded())
-      {
-        cvSetData(img, (uint8_t*)ptrGrabResult->GetBuffer(), ptrGrabResult->GetWidth());
-      } else {
-        ROS_INFO("ERROR: files to grab new image\n");
-                exit(EXIT_FAILURE);
-      }
+    capture.read(temp);
+    if (temp.empty())
+         {
+           ROS_INFO("ERROR: files to grab new image\n");
+           exit(EXIT_FAILURE);
+         }
+
+
+    img->imageData = (char*)temp.data;
 
     bool newResult = processMarkerImg(img); // Get transformation matrix from new result.
 
@@ -405,5 +396,4 @@ int main(int argc, char** argv)
 
     loop_rate.sleep();
   }
-  cvReleaseCapture(&capture);
 }

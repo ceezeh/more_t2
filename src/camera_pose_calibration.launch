@@ -11,7 +11,7 @@
 		type="camera_pose_calibration" 
 		name="cam0" 
 		output="screen" 
-		
+		launch-prefix="xterm -e"
 		required="true"		
 	>
 		<param name="id" value="0" type="int"/>
@@ -23,7 +23,7 @@
 		type="camera_pose_calibration" 
 		name="cam1" 
 		output="screen" 
-		launch-prefix="xterm -e"
+		
 	>
 		<param name="id" value="1" type="int"/>
 	</node>
