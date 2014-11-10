@@ -4,13 +4,6 @@
 #include <iomanip>  // for controlling float print precision
 #include <sstream>  // string to number conversion
 #include <fstream>      // std::ofstream
-#include <pylon/PylonIncludes.h>
-#ifdef PYLON_WIN_BUILD
-#include <pylon/PylonGUI.h>
-#endif
-#include <pylon/PylonImage.h>
-#include <pylon/Pixel.h>
-#include <pylon/ImageFormatConverter.h>
 #include <cv.h>
 #include <opencv2/core/core.hpp>        // Basic OpenCV structures (cv::Mat, Scalar)
 #include <opencv2/imgproc/imgproc.hpp>  // Gaussian Blur
@@ -151,63 +144,17 @@ int main(int argc, char** argv)
   ros::NodeHandle n("~");
   ros::Rate loop_rate(10);
 
-  int noOfCams = 0;
-  int maxNoOfCams = 6;
-  n.getParam("max_no_of_cams", maxNoOfCams); //The total number of possible cameras.
+  int noCams = 1;
+  n.getParam("noCams", noCams); //The total number of possible cameras.
   // Generate cam_pose array based on number of cameras and referenced by ID;
-//  Mat cam_poses[maxNoOfCams];
-  bool activeCams[maxNoOfCams];
 
-  // Create a boolean of available cameras.
-  // Also find number of active cameras.
-  int temp = 0;
-  stringstream sbuffer;
-  for (int i = 0; i < maxNoOfCams; i++)
-  {
-    sbuffer << "cam" << i;
-    n.getParam(sbuffer.str().c_str(), temp);
-    if (temp == 0)
-    {
-      activeCams[i] = false;
-    }
-    else
-    {
-      activeCams[i] = true;
-      noOfCams++;
-    }
-    sbuffer.str("");
-  }
-// For test!!
-//  activeCams[0] = true;
-//  activeCams[1] = true;
-//  noOfCams = 2;
-  // Wait for all recorder node to signal to our semaphore.
-  ros::Subscriber sema_sub = n.subscribe("/global/sema", noOfCams, semaCallback);
-  while (sema_signals != 1) // replace with noOfCams
-  {
-    ros::spinOnce();
-    loop_rate.sleep();
-  }
-  sema_sub.shutdown();
-
-  int id = -1;
   // Generate tracking information for all relevant camera feeds.
-  for (int itr = 0; itr < noOfCams; itr++)
+  for (int id = 0; id < noCams; id++)
   {
-
-    // Get the next camera's id.
-
-    while (activeCams[++id] == false)
-    {
-      if (id >= maxNoOfCams)
-      {
-        cout << "End of Video Feeds!." << endl;
-        exit(EXIT_FAILURE);
-      }
-    }
 
     // Initialise capturing device.
     // We assume frames are all of the same size and are all gray scale.
+    stringstream sbuffer;
     string filepath = "/home/ceezeh/catkin_ws/src/more_t2/videos/video_cam_";
     sbuffer << filepath << id << ".avi";
 
@@ -248,7 +195,7 @@ int main(int argc, char** argv)
 
     Mat poseImg = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 1);
 
-    float t = 0; // time variable.
+    float t = 0; // Todo: Correct for time variable.
 
     string path = "/home/ceezeh/catkin_ws/src/more_t2/posedata/pose_cam_";
     sbuffer << path << id << ".csv";

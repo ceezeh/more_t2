@@ -59,6 +59,8 @@ static const uint32_t c_countOfImagesToGrab = 100;
 char camera_name[100];
 Mat cam_pose;
 CInstantCamera camera;
+VideoCapture capture;
+bool camInitialise = false;
 int width;
 int height;
 int id = 0;
@@ -89,48 +91,37 @@ void getConfig()
   cam_pose = (Mat_<float>(3, 1) << x, y, z);
 }
 
-void initialiseCam()
+void initialiseCam(int deviceNum = 0)
 {
-  try
-  {
-    // assign camera no to a full name.
-    CTlFactory& tlFactory = CTlFactory::GetInstance();
-    DeviceInfoList_t devices;
-    // Get all attached devices and exit application if no device is found.
-    if (tlFactory.EnumerateDevices(devices) == 0)
-    {
-      throw RUNTIME_EXCEPTION( "No camera present.");
-      exit (EXIT_FAILURE);
-    }
-
-    // Todo change this to correct id value
-    camera.Attach(tlFactory.CreateDevice(camera_name));
-
-    // Print the model name of the camera.
-    cout << "Using device " << camera.GetDeviceInfo().GetModelName() << endl;
-    // Start camera grabbing.
-    camera.StartGrabbing(GrabStrategy_LatestImageOnly);
-  }
-  catch (GenICam::GenericException &e)
-  {
-    // Error handling
-    cerr << "An exception occurred." << endl << e.GetDescription() << endl;
-    exit(EXIT_FAILURE);
-  }
+  // Write a function to open camera
+  // we will use an OpenCV capture
+     capture.open(deviceNum);
+     capture.set(CV_CAP_PROP_FRAME_WIDTH,320);
+     capture.set(CV_CAP_PROP_FRAME_HEIGHT,240);
+     printf("Opening device number : %d", deviceNum);
+     if (!capture.isOpened())
+     {
+       std::cout << "Could not initialize capturing...\n" << std::endl;
+       exit (EXIT_FAILURE);
+     }
+     camInitialise = true;
 }
 
 void initFrameSize()
 {
-    camera.RetrieveResult(500, ptrGrabResult, TimeoutHandling_ThrowException);
-    if (ptrGrabResult->GrabSucceeded())
-    {
-      width = ptrGrabResult->GetWidth();
-      height = ptrGrabResult->GetHeight();
-      cout << "width " << width << endl;
-    } else {
-      ROS_INFO("ERROR: Could not grab a frame\n");
-          exit(EXIT_FAILURE);
-    }
+    // Write a function to open camera
+     Mat frame;
+       IplImage *img;
+       capture>>frame;
+       img = cvCreateImage(cvSize(frame.cols,frame.rows), IPL_DEPTH_8U, frame.channels());
+       img->imageData = (char *)frame.data;
+       if (frame.empty())
+       {
+         printf("Failed to open image from capture device");
+         exit(EXIT_FAILURE);
+       }
+       width = img->width;
+       height = img->height;
 }
 
 int main(int argc, char* argv[])
@@ -154,7 +145,6 @@ int main(int argc, char* argv[])
   Pylon::PylonAutoInitTerm autoInitTerm;
 
   CGrabResultPtr ptrGrabResult;
-  IplImage* img = cvCreateImageHeader(cvSize(width, height), IPL_DEPTH_8U, 1);
 
 
   stringstream sbuffer;
@@ -163,7 +153,11 @@ int main(int argc, char* argv[])
 
     Size frameSize(static_cast<int>(width), static_cast<int>(height));
     // Todo: Get precise frame rate. This static value is very wrong.
-  CvVideoWriter* oVideoWriter = cvCreateVideoWriter(sbuffer.str().c_str(), CV_FOURCC('M', 'J', 'P', 'G'), 5, cvSize(width, height), 0);
+    Mat temp;
+            capture.read(temp);
+            IplImage* img  = cvCreateImage(cvSize(temp.cols,temp.rows), IPL_DEPTH_8U, temp.channels());
+
+  CvVideoWriter* oVideoWriter = cvCreateVideoWriter(sbuffer.str().c_str(), CV_FOURCC_DEFAULT, 5, cvSize(width, height), 0);
   if ( !oVideoWriter ) //if not initialize the VideoWriter successfully, exit the program
     {
          cout << "ERROR: Failed to start video writer" << endl;
@@ -171,17 +165,18 @@ int main(int argc, char* argv[])
     }
 
   while(ros::ok()) {
-    camera.RetrieveResult(1000, ptrGrabResult, TimeoutHandling_ThrowException);
-          if (ptrGrabResult->GrabSucceeded())
-          {
-            cvSetData(img, (uint8_t*)ptrGrabResult->GetBuffer(), ptrGrabResult->GetWidth());
+    capture.read(temp);
+    if (temp.empty())
+            {
+              ROS_INFO("ERROR: files to grab new image\n");
+              exit(EXIT_FAILURE);
+            }
+
+    img->imageData = (char*)temp.data;
             cvWriteToAVI(oVideoWriter,img);
             cvShowImage("Debug", img);
             cvWaitKey(1); // Wait for image to be rendered on screen. If not included, no image is shown.
-          } else {
-            ROS_INFO("ERROR: files to grab new image\n");
-                    exit(EXIT_FAILURE);
-          }
+
           cout << "cam pose" << endl << cam_pose << endl << endl;
 
       ros::spinOnce();
