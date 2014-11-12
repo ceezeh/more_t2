@@ -40,7 +40,7 @@ int main(int argc, char* argv[])
   ros::Rate loop_rate(10);
 
   namedWindow("CV_Image", WINDOW_AUTOSIZE);
-  VideoCapture cap("192.168.1.17/cgi-bin/mjpeg");
+  VideoCapture cap("/home/ceezeh/catkin_ws/src/more_t2/video/video_cam_0.mov");
   if (!cap.isOpened()) {
     std::cout << "Could not initialize capturing...\n" << std::endl;
           exit(EXIT_FAILURE);

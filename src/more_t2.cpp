@@ -131,10 +131,6 @@ void getCamPose(Mat * poseArray, int index)
   *poseArray = (Mat_<float>(6, 1) << x, y, z, roll, yaw, pitch);
 
 }
-void semaCallback(const std_msgs::String::ConstPtr& msg)
-{
-  sema_signals++;
-}
 
 int main(int argc, char** argv)
 {
@@ -144,7 +140,7 @@ int main(int argc, char** argv)
   ros::NodeHandle n("~");
   ros::Rate loop_rate(10);
 
-  int noCams = 1;
+  int noCams = 2;
   n.getParam("noCams", noCams); //The total number of possible cameras.
   // Generate cam_pose array based on number of cameras and referenced by ID;
 
@@ -155,10 +151,11 @@ int main(int argc, char** argv)
     // Initialise capturing device.
     // We assume frames are all of the same size and are all gray scale.
     stringstream sbuffer;
-    string filepath = "/home/ceezeh/catkin_ws/src/more_t2/videos/video_cam_";
-    sbuffer << filepath << id << ".avi";
+    string filepath = "/home/ceezeh/catkin_ws/src/more_t2/video/video_cam_";
+    sbuffer << filepath << id << ".mov";
 
-    CvCapture* capture = cvCaptureFromAVI(sbuffer.str().c_str());
+//    CvCapture* capture = cvCaptureFromAVI(sbuffer.str().c_str());
+    CvCapture* capture = cvCaptureFromCAM(id);
     sbuffer.str("");
     if (!capture)
     {
@@ -216,8 +213,12 @@ int main(int argc, char** argv)
       cvCvtColor(img, tempImg, CV_RGB2GRAY);
       cvAdaptiveThreshold(tempImg, greyImg, 255.0, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 111);
 
-      cvWaitKey(1); // Wait for image to be rendered on screen. If not included, no image is shown.
+
       int numDetected = tracker->calc((unsigned char*)greyImg->imageData);
+      char name[10];
+      sprintf(name, "%d", id);
+      cvShowImage(name, greyImg);
+      cvWaitKey(1); // Wait for image to be rendered on screen. If not included, no image is shown.
       if (numDetected != 0)
       {
         printf("Number of Markers = %d\n\n", numDetected);
@@ -235,6 +236,9 @@ int main(int argc, char** argv)
       }
       // Todo: Scale time by frame rate factor.
       t++;
+      if (t >=500){
+        break;
+      }
       img = cvQueryFrame(capture);
       if (!img)
       {

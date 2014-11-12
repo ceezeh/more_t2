@@ -83,8 +83,6 @@ void initialiseCam(int deviceNum = 0)
   // Write a function to open camera.
   // we will use an OpenCV capture.
   capture.open(deviceNum);
-  capture.set(CV_CAP_PROP_FRAME_WIDTH, 320);
-  capture.set(CV_CAP_PROP_FRAME_HEIGHT, 240);
   printf("Opening device number : %d", deviceNum);
   if (!capture.isOpened())
   {
@@ -137,11 +135,9 @@ int main(int argc, char* argv[])
   Mat temp;
   capture.read(temp);
   IplImage* img = cvCreateImage(cvSize(temp.cols, temp.rows), IPL_DEPTH_8U, temp.channels());
-  VideoWriter* oVideoWriter = new VideoWriter(sbuffer.str().c_str(), CV_FOURCC('H','2','6','4'), fps,
+  CvVideoWriter* oVideoWriter = cvCreateVideoWriter(sbuffer.str().c_str(), CV_FOURCC('M','J','P','G'), fps,
                                                     cvSize(width, height), true);
-  oVideoWriter->open(sbuffer.str().c_str(), CV_FOURCC('H','2','6','4'), fps,
-                                                    cvSize(width, height), true);
-  if (!oVideoWriter->isOpened()) //if not initialize the VideoWriter successfully, exit the program
+   if (!oVideoWriter) //if not initialize the VideoWriter successfully, exit the program
   {
     cout << "ERROR: Failed to start video writer" << endl;
     exit(EXIT_FAILURE);
@@ -157,7 +153,7 @@ int main(int argc, char* argv[])
     }
 
     img->imageData = (char*)temp.data;
-    oVideoWriter->write(img);
+    cvWriteFrame(oVideoWriter,img);
     cvShowImage("Debug", img);
     cvWaitKey(1); // Wait for image to be rendered on screen. If not included, no image is shown.
 
@@ -166,6 +162,7 @@ int main(int argc, char* argv[])
     ros::spinOnce();
     loop_rate.sleep();
   }
- oVideoWriter->release();
+  capture.release();
+  cvReleaseVideoWriter(&oVideoWriter);
   return 0;
 }

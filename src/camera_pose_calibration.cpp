@@ -18,6 +18,7 @@
 #include <cstdio>
 #include <ARToolKitPlus/TrackerMultiMarker.h>
 #include <math.h>
+#include <cstdlib>
 #include <geometry_msgs/PoseStamped.h>
 #include <new>          // ::operator new[]
 
@@ -25,51 +26,54 @@ using namespace std;
 using namespace cv;
 using ARToolKitPlus::TrackerMultiMarker;
 
-const ros::Duration timeout(0, 100000000); // 100 milli second.
-int noCams = 1;
-int* widthArr;
-int* heightArr;
-bool* camerasPoseKnown;
-VideoCapture* captureArr;
-TrackerMultiMarker **trackerArr;
-Mat *camPoseArr;
 // The pose of the initial camera.
 Mat centreMat = (Mat_<float>(4, 1) << 0, 0, 0, 1);
+TrackerMultiMarker *tracker;
 
-//Debug variable
-bool camInitialise = false;
-bool *newResultArr;
-//Todo: Change this to frame captured time.
-ros::Time arrivalTime;
-struct Marker{
-  Mat marker_pose;
-  ros::Time mTime;
+struct CaptureInfo
+{
+  int width;
+  int height;
+  VideoCapture capture;
+  bool newResult;
+//  TrackerMultiMarker *tracker;
 };
-Marker marker;
+struct CameraInfo
+{
+  Mat camPose;
+  bool cameraPoseKnown;
+};
+struct Marker
+{
+  Mat marker_pose;
+  int mTime;
+};
 
-void initialiseCam(int id, VideoCapture cap)
+void initialiseCam(int id, VideoCapture &cap)
 {
   // Write a function to open camera
   // we will use an OpenCV capture
-  string file = "home/ceezeh/catkin_ws/src/more_t2/cfg/cfg_vid_";
+  string file = "/home/ceezeh/catkin_ws/src/more_t2/video/video_cam_";
   stringstream buffer;
   // Todo: Change to right format.
-  buffer << file << id << ".avi";
-  cap.open(buffer.str().c_str());
+  buffer << file << id << ".mov";
+  cap.open(id);
+  cap.set(CV_CAP_PROP_FRAME_WIDTH,320);
+  cap.set(CV_CAP_PROP_FRAME_HEIGHT, 240);
   printf("Opening calibration video number : %d", id);
-  if (!captureArr[id].isOpened())
+  if (!cap.isOpened())
   {
     std::cout << "Could not initialize capturing...\n" << std::endl;
     exit(EXIT_FAILURE);
   }
 }
 
-void initFrameSize(VideoCapture cap, int width, int height)
+void initFrameSize(VideoCapture &cap, int &width, int &height)
 {
   // Write a function to open camera
   Mat frame;
   IplImage *img;
-  cap >> frame;
+  cap.read(frame);
   img = cvCreateImage(cvSize(frame.cols, frame.rows), IPL_DEPTH_8U, frame.channels());
   img->imageData = (char *)frame.data;
   if (frame.empty())
@@ -81,35 +85,35 @@ void initFrameSize(VideoCapture cap, int width, int height)
   height = img->height;
 }
 
-int configTracker(TrackerMultiMarker * t, int width, int height)
+int configTracker(int width, int height)
 {
   // write a function get camera frame size.
-  t = new TrackerMultiMarker(width, height, 8, 6, 6, 6, 0);
-  t->setPixelFormat(ARToolKitPlus::PIXEL_FORMAT_LUM);
+  tracker = new TrackerMultiMarker(width, height, 8, 6, 6, 6, 0);
+  tracker->setPixelFormat(ARToolKitPlus::PIXEL_FORMAT_LUM);
 
   // load a camera file.
-  if (!t->init("/home/ceezeh/catkin_ws/src/more_t2/data/logitech.cal",
+  if (!tracker->init("/home/ceezeh/catkin_ws/src/more_t2/data/no_distortion.cal",
                      "/home/ceezeh/local/tools/ARToolKitPlus-2.3.0/sample/data/markerboard_480-499.cfg", 1.0f, 1000.0f)) // load MATLAB file
   {
     ROS_INFO("ERROR: init() failed\n");
     exit(EXIT_FAILURE);
   }
 
-  t->getCamera()->printSettings();
+  tracker->getCamera()->printSettings();
 
   // the marker in the BCH test image has a thin border...
-  t->setBorderWidth(0.125);
+  tracker->setBorderWidth(0.125);
 
   // set a threshold. alternatively we could also activate automatic thresholding
-  t->setThreshold(130);
+  tracker->setThreshold(160);
 
   // let's use lookup-table undistortion for high-speed
   // note: LUT only works with images up to 1024x1024
-  t->setUndistortionMode(ARToolKitPlus::UNDIST_LUT);
+  tracker->setUndistortionMode(ARToolKitPlus::UNDIST_LUT);
 
   // switch to simple ID based markers
   // use the tool in tools/IdPatGen to generate markers
-  t->setMarkerMode(ARToolKitPlus::MARKER_ID_SIMPLE);
+  tracker->setMarkerMode(ARToolKitPlus::MARKER_ID_SIMPLE);
   return 0;
 }
 
@@ -123,7 +127,7 @@ int configTracker(TrackerMultiMarker * t, int width, int height)
 //}
 
 // Updates and publishes marker pose.
-void updateMarkerPose(TrackerMultiMarker* tracker, Mat cam_pose)
+void updateMarkerPose(TrackerMultiMarker* tracker, Mat cam_pose, Marker marker)
 {
   ARToolKitPlus::ARMarkerInfo markerInfo = tracker->getDetectedMarker(0);
   ARFloat nOpenGLMatrix[16];
@@ -169,12 +173,12 @@ void updateMarkerPose(TrackerMultiMarker* tracker, Mat cam_pose)
   // Pitch C
   pose_t.at<float>(5, 0) = atan2(-Rg2m.at<float>(0, 1), Rg2m.at<float>(1, 1));
   pose_t.copyTo(marker.marker_pose);
-  marker.mTime = ros::Time::now();
+//  marker.mTime = ros::Time::now();
 }
 
 // Get transformation matrix from camera to marker.
 // Returns true if a new transformation matrix was obtained.
-bool processMarkerImg(IplImage *img, TrackerMultiMarker *tracker, int width, int height)
+bool processMarkerImg(IplImage *img, TrackerMultiMarker *tracker, int width, int height, int id)
 {
   int numDetected = 0;
   IplImage *greyImg = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 1);
@@ -183,7 +187,9 @@ bool processMarkerImg(IplImage *img, TrackerMultiMarker *tracker, int width, int
   cvCvtColor(img, tempImg, CV_RGB2GRAY);
   cvAdaptiveThreshold(tempImg, greyImg, 255.0, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 111);
   numDetected = tracker->calc((unsigned char*)greyImg->imageData);
-  cvShowImage("Proof2", greyImg);
+  char name[10];
+  sprintf(name,"%d",id);
+  cvShowImage(name, greyImg);
   cvWaitKey(1); // Wait for image to be rendered on screen. If not included, no image is shown.
 
   if (numDetected != 0)
@@ -204,10 +210,6 @@ void getCameraPose(TrackerMultiMarker* tracker, Mat* marker_pose_t, Mat* cam_pos
   tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth, nOpenGLMatrix);
 
   Mat T = Mat(4, 4, CV_32FC1, (float *)nOpenGLMatrix);
-  // Temporary Fix for the z translation value.
-//  if (id == 1) {
-//    T.at<float>(3,2) *=1.6;
-//  }
 
   cout << "[Debug]: T' = " << endl << T.t() << endl << endl;
   Mat Tc2m = ((Mat)(T.t() * centreMat)).rowRange(0, 3);
@@ -280,29 +282,42 @@ int main(int argc, char** argv)
 
   ros::NodeHandle n("~");
   ros::Rate loop_rate(10);
-  bool pubsubToggle = false;
+//  const ros::Duration timeout(0, 100000000); // 100 milli second.
+  int timeout = 100;
+  int noCams = 2;
 
   n.getParam("noCams", noCams);
 
   Mat T;
   T.create(4, 4, CV_32FC1);
-  marker.marker_pose = Mat::zeros(6, 1, CV_32F);
 
   // Initialise all global variables.
-  widthArr = new int[noCams];
-  heightArr = new int[noCams];
-  captureArr = new VideoCapture[noCams];
-  trackerArr = new TrackerMultiMarker*[noCams];
-  newResultArr = new bool[noCams];
+  struct Config
+  {
+    CaptureInfo *captureInfo;
+    CameraInfo *cameraInfo;
+    Marker marker;
+//    TrackerMultiMarker * tracker;
+  };
+
+  Config config;
+  config.captureInfo = new CaptureInfo[noCams];
+  config.cameraInfo = new CameraInfo[noCams];
+  config.marker.marker_pose = Mat::zeros(6, 1, CV_32F);
+
   for (int i = 0; i < noCams; i++)
   {
-    camerasPoseKnown[i] = false;
-    initialiseCam(i,captureArr[i]);
-    camPoseArr[i].create(6, 1, CV_32F);
-    initFrameSize(captureArr[i], widthArr[i], heightArr[i]);
-    configTracker(trackerArr[i], widthArr[i], heightArr[i]);
-    newResultArr[i] = false;
+    config.cameraInfo[i].camPose = Mat::zeros(6, 1, CV_32F);
+    config.cameraInfo[i].cameraPoseKnown = false;
+    initialiseCam(i, config.captureInfo[i].capture);
+    Mat frame;
+    //Todo: May need to make width and height global like tracker
+    config.captureInfo[i].capture.read(frame);
+    initFrameSize(config.captureInfo[i].capture, config.captureInfo[i].width, config.captureInfo[i].height);
+//    configTracker(config.captureInfo[i].tracker, config.captureInfo[i].width, config.captureInfo[i].height);
+    config.captureInfo[i].newResult = false;
   }
+  configTracker(config.captureInfo[0].width, config.captureInfo[0].height);
 
 // Initialise known camera's position.
   stringstream stream;
@@ -311,16 +326,18 @@ int main(int argc, char** argv)
   n.getParam("pose", pose_s);
   stream << pose_s;
   stream >> x >> y >> z >> roll >> yaw >> pitch;
-  camPoseArr[0] = (Mat_<float>(6, 1) << x, y, z, roll, yaw, pitch);
-  camerasPoseKnown[0] = true;
-  writeCalibrationToFile(0, camPoseArr[0]);
+  config.cameraInfo[0].camPose = (Mat_<float>(6, 1) << x, y, z, roll, yaw, pitch);
+  // Todo:This is for debug only.
+  config.cameraInfo[0].camPose = Mat::zeros(6, 1, CV_32F);
+  config.cameraInfo[0].cameraPoseKnown = true;
+  writeCalibrationToFile(0, config.cameraInfo[0].camPose);
 
   IplImage* imgArr[noCams];
 
   for (int id = 0; id < noCams; id++)
   {
     Mat temp;
-    captureArr[id].read(temp);
+    config.captureInfo[id].capture.read(temp);
     imgArr[id] = cvCreateImage(cvSize(temp.cols, temp.rows), IPL_DEPTH_8U, temp.channels());
   }
 
@@ -331,9 +348,9 @@ int main(int argc, char** argv)
     {
 
       Mat temp;
-      captureArr[id].read(temp);
-      int count = captureArr[id].get(CV_CAP_PROP_POS_MSEC);
-      cout << "Attention!! " << count << endl;
+      config.captureInfo[id].capture.read(temp);
+      int frameTime = config.captureInfo[id].capture.get(CV_CAP_PROP_POS_MSEC);
+      cout << "Frame time: " << frameTime << " msecs; id: "<<id<< endl;
       if (temp.empty())
       {
         ROS_INFO("ERROR: files to grab new image\n");
@@ -342,36 +359,34 @@ int main(int argc, char** argv)
 
       imgArr[id]->imageData = (char*)temp.data;
 
-      newResultArr[id] = processMarkerImg(imgArr[id],trackerArr[id], widthArr[id], heightArr[id]); // Get transformation matrix from new result.
+      config.captureInfo[id].newResult = processMarkerImg(imgArr[id], tracker, config.captureInfo[id].width,
+                                                          config.captureInfo[id].height,id); // Get transformation matrix from new result.
 
-      if (camerasPoseKnown[id])
+      if (config.cameraInfo[id].cameraPoseKnown)
       {
-        // Update PubSub
-        // Shutdown subscriber if still on and start publisher if not started
-        if (pubsubToggle == false)
-        {
-          pubsubToggle = true;
-        }
-
         // If camera's position is known then start publishing marker position
         // publish marker pose.
-        cout << "cam_pose" << endl << camPoseArr[id] << endl << endl;
-        if (newResultArr[id])
-          updateMarkerPose(trackerArr[id], camPoseArr[id]);
-          newResultArr[id] = false;
+        cout << "cam_pose" << endl << config.cameraInfo[id].camPose << endl << endl;
+        if (config.captureInfo[id].newResult)
+        {
+          config.marker.mTime = frameTime;
+          updateMarkerPose(tracker, config.cameraInfo[id].camPose, config.marker);
+          config.captureInfo[id].newResult = false;
+        }
       }
       else
       { // Derive Camera's position from marker image.
         cout << "Unknown Cam Pose" << endl;
 
-        if (newResultArr[id] && ((ros::Time::now() - marker.mTime) < timeout))
+        if (config.captureInfo[id].newResult)
+//          if (config.captureInfo[id].newResult && ((frameTime - config.marker.mTime) < timeout))
         {
           cout << "Getting cam pose" << endl;
-          getCameraPose(trackerArr[id], &marker.marker_pose, &camPoseArr[id]);
-          camerasPoseKnown[id] = true;
-          newResultArr[id] = false;
+          getCameraPose(tracker, &config.marker.marker_pose, &config.cameraInfo[id].camPose);
+          config.cameraInfo[id].cameraPoseKnown = true;
+          config.captureInfo[id].newResult = false;
 
-          writeCalibrationToFile(id, camPoseArr[id]);
+          writeCalibrationToFile(id, config.cameraInfo[id].camPose);
         }
       }
       // Update pub sub
