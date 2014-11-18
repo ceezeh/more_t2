@@ -81,7 +81,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+  INCLUDE_DIRS include
 #  LIBRARIES more_t2
 #  CATKIN_DEPENDS roscpp rospy std_msgs
 #  DEPENDS system_lib
@@ -95,6 +95,7 @@ catkin_package(
 ## Your package locations should be listed before other locations
 # include_directories(include)
 include_directories(
+include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
 )
@@ -167,22 +168,19 @@ find_package(OpenCV)
 # Additional Linker flags for pylon
 SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -DUSE_GIGE")
 SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -Wl,-E")
-#  Link pylon libraries
-include_directories(include ${catkin_INCLUDE_DIRS} ~/local/tools/pylon-4.0.0.62-x86_64/pylon4/include ~/local/tools/pylon-4.0.0.62-x86_64/pylon4/genicam/library/CPP/include)
-link_directories(~/local/tools/pylon-4.0.0.62-x86_64/pylon4/lib64  ~/local/tools/pylon-4.0.0.62-x86_64/pylon4/genicam/bin/Linux64_x64  ~/local/tools/pylon-4.0.0.62-x86_64/pylon4/genicam/bin/Linux64_x64/GenApi/Generic)
 
 add_executable(more_t2 src/more_t2.cpp)
-target_link_libraries(more_t2 ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/lib/libARToolKitPlus.so /home/ceezeh/local/tools/pylon-4.0.0.62-x86_64/pylon4/genicam/bin/Linux64_x64/libGCBase_gcc40_v2_3.so pylonbase pylonutility)
+target_link_libraries(more_t2 ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/local/lib/libARToolKitPlus.so )
 add_dependencies(more_t2 ${catkin_EXPORTED_TARGETS})
 
 add_executable(camera_pose_calibration src/camera_pose_calibration.cpp)
-target_link_libraries(camera_pose_calibration ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/lib/libARToolKitPlus.so /home/ceezeh/local/tools/pylon-4.0.0.62-x86_64/pylon4/genicam/bin/Linux64_x64/libGCBase_gcc40_v2_3.so pylonbase pylonutility)
+target_link_libraries(camera_pose_calibration ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/local/lib/libARToolKitPlus.so )
 add_dependencies(camera_pose_calibration ${catkin_EXPORTED_TARGETS})
 
 add_executable(recorder src/recorder.cpp)
-target_link_libraries(recorder ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/lib/libARToolKitPlus.so /home/ceezeh/local/tools/pylon-4.0.0.62-x86_64/pylon4/genicam/bin/Linux64_x64/libGCBase_gcc40_v2_3.so pylonbase pylonutility)
+target_link_libraries(recorder ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/local/lib/libARToolKitPlus.so )
 add_dependencies(recorder ${catkin_EXPORTED_TARGETS})
 
 add_executable(streamtest src/streamtest.cpp)
-target_link_libraries(streamtest ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/lib/libARToolKitPlus.so /home/ceezeh/local/tools/pylon-4.0.0.62-x86_64/pylon4/genicam/bin/Linux64_x64/libGCBase_gcc40_v2_3.so pylonbase pylonutility)
+target_link_libraries(streamtest ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/local/lib/libARToolKitPlus.so )
 add_dependencies(streamtest ${catkin_EXPORTED_TARGETS})

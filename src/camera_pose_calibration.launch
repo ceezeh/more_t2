@@ -23,7 +23,6 @@
 		type="camera_pose_calibration" 
 		name="cam1" 
 		output="screen" 
-		
 	>
 		<param name="id" value="1" type="int"/>
 	</node>

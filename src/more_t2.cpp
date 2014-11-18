@@ -1,4 +1,5 @@
 #include <ros/ros.h>
+#include <rosbag/bag.h>
 #include <iostream> // for standard I/O
 #include <string>   // for strings
 #include <iomanip>  // for controlling float print precision
@@ -28,8 +29,8 @@ int configTracker(int width_t, int height_t)
   tracker->setPixelFormat(ARToolKitPlus::PIXEL_FORMAT_LUM);
 
   // load a camera file.
-  if (!tracker->init("/home/ceezeh/catkin_ws/src/more_t2/data/no_distortion.cal",
-                     "/home/ceezeh/local/tools/ARToolKitPlus-2.3.0/sample/data/markerboard_480-499.cfg", 1.0f, 1000.0f)) // load MATLAB file
+  if (!tracker->init("/home/parallels/catkin_ws/src/more_t2/data/logitech_new.cal",
+                     "/home/parallels/tools/ARToolKitPlus-2.3.1/sample/data/markerboard_480-499.cfg", 1.0f, 1000.0f)) // load MATLAB file
   {
     ROS_INFO("ERROR: init() failed\n");
     return -1;
@@ -65,9 +66,6 @@ void calcMarkerPose(TrackerMultiMarker* tracker_t, Mat* pose)
   Mat T = Mat(4, 4, CV_32FC1, (float *)nOpenGLMatrix);
   cout << "[Debug] T'= " << T.t() << endl;
   // Update Translation part of pose of marker from camera
-  Mat subpose = pose->rowRange(0, 3);
-  Mat xyz = ((Mat)(T.t() * centreMat)).rowRange(0, 3);
-  xyz.copyTo(subpose);
 
   // Calculate orientation.
 
@@ -85,18 +83,34 @@ void calcMarkerPose(TrackerMultiMarker* tracker_t, Mat* pose)
   Mat Ry = (Mat_<float>(3,3) << cosB, 0, sinB,
                               0, 1, 0,
                             -sinB, 0, cosB);
-  Mat Rg2c = Rz*Rx*Ry;
-  Mat Rg2m = T.rowRange(0,3).colRange(0,3) * Rg2c;
+  Mat Rc2g = Rz*Rx*Ry;
+  Mat Rm2g = Rc2g * T.rowRange(0,3).colRange(0,3);
 
   // Update Orientation Part of Pose of marker from camera.
   // heading = atan2(-r20,r00)
   // Roll A
-  pose->at<float>(3, 0) = asin(Rg2m.at<float>(2, 1));
+  pose->at<float>(3, 0) = asin(Rm2g.at<float>(2, 1));
   // Yaw B
-  pose->at<float>(4, 0) = atan2(-Rg2m.at<float>(2, 0), Rg2m.at<float>(2, 2));
+  pose->at<float>(4, 0) = atan2(-Rm2g.at<float>(2, 0), Rm2g.at<float>(2, 2));
   // Pitch C
-  pose->at<float>(5, 0) = atan2(-Rg2m.at<float>(0, 1), Rg2m.at<float>(1, 1));
+  pose->at<float>(5, 0) = atan2(-Rm2g.at<float>(0, 1), Rm2g.at<float>(1, 1));
 
+  Mat cPose = (Mat_<float>(4, 1) << 0, 0, 0, 1);
+  Mat marker_t = ((Mat)(T.t() * cPose));
+
+  Mat Trans_t;
+  Trans_t.create(3,4, CV_32F);
+  hconcat(Rc2g, cam_pose.rowRange(0,3), Trans_t);
+  Mat Trans;
+  Trans.create(4,4, CV_32F);
+  Mat off = (Mat_<float>(1, 4) << 0,0,0,1);
+  vconcat(Trans_t,off , Trans);
+
+  // Calculate Translation
+  Mat cam = ((Mat)(Trans * marker_t)).rowRange(0,3);
+  Mat mTrans = pose->rowRange(0, 3);
+  cam.copyTo(mTrans);
+  cout << "cam = " << endl << cam_pose << endl << endl;
   cout << "pose = " << endl << *pose << endl << endl;
 }
 
@@ -104,7 +118,7 @@ void getCamPose(Mat * poseArray, int index)
 {
   ifstream file;
   stringstream sbuffer;
-  string filepath = "/home/ceezeh/catkin_ws/src/more_t2/cfg/cfg_";
+  string filepath = "/home/parallels/catkin_ws/src/more_t2/cfg/cfg_";
   sbuffer << filepath << index;
   file.open(sbuffer.str().c_str(), ios::in);
   if (!file.is_open())
@@ -145,17 +159,17 @@ int main(int argc, char** argv)
   // Generate cam_pose array based on number of cameras and referenced by ID;
 
   // Generate tracking information for all relevant camera feeds.
-  for (int id = 0; id < noCams; id++)
+  for (int id = 1; id < noCams; id++)
   {
 
     // Initialise capturing device.
     // We assume frames are all of the same size and are all gray scale.
     stringstream sbuffer;
-    string filepath = "/home/ceezeh/catkin_ws/src/more_t2/video/video_cam_";
+    string filepath = "/media/psf/Home/Documents/PhdBase/Main/Helper_Projects/More_T2/video/video_cam_";
     sbuffer << filepath << id << ".mov";
 
-//    CvCapture* capture = cvCaptureFromAVI(sbuffer.str().c_str());
-    CvCapture* capture = cvCaptureFromCAM(id);
+   CvCapture* capture = cvCaptureFromAVI(sbuffer.str().c_str());
+    // CvCapture* capture = cvCaptureFromCAM(id);
     sbuffer.str("");
     if (!capture)
     {
@@ -194,7 +208,7 @@ int main(int argc, char** argv)
 
     float t = 0; // Todo: Correct for time variable.
 
-    string path = "/home/ceezeh/catkin_ws/src/more_t2/posedata/pose_cam_";
+    string path = "/home/parallels/catkin_ws/src/more_t2/posedata/pose_cam_";
     sbuffer << path << id << ".csv";
     cout << "sbuffer" << endl << sbuffer.str() << endl;
     cout << "id" << endl << id << endl;
@@ -213,7 +227,6 @@ int main(int argc, char** argv)
       cvCvtColor(img, tempImg, CV_RGB2GRAY);
       cvAdaptiveThreshold(tempImg, greyImg, 255.0, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 111);
 
-
       int numDetected = tracker->calc((unsigned char*)greyImg->imageData);
       char name[10];
       sprintf(name, "%d", id);
@@ -228,7 +241,7 @@ int main(int argc, char** argv)
         // To do this, increment each time based on frame rate.
         // Here we assume frame rate is constant as given by a hardware trigger.
 
-        //We save each row in the form, x, y, z, t;
+        // We save each row in the form, x, y, z, t;
         // Todo: Save information on 6DOF trajectory so include:
         // Yaw, Pitch and Row information.
         fp << pose.at<float>(0, 0) << "," << pose.at<float>(1, 0) << "," << pose.at<float>(2, 0) << ","
@@ -236,9 +249,6 @@ int main(int argc, char** argv)
       }
       // Todo: Scale time by frame rate factor.
       t++;
-      if (t >=500){
-        break;
-      }
       img = cvQueryFrame(capture);
       if (!img)
       {

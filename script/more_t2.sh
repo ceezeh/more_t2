@@ -10,6 +10,7 @@
 # ffmpeg -i "video_cam_0.mkv" -c copy -map 0:v "video_cam_0.mov"
 # ffmpeg -i "video_cam_1.mkv"  -c copy -map 0:v "video_cam_1.mov"
 
+# ffmpeg -f avfoundation  -pixel_format bgr0  -i "0" -f avfoundation  -pixel_format bgr0  -i "1" -s 320x240 -map 0:v ~/Documents/PhdBase/Main/Helper\ Projects/More-T2/video/video_cam_0.mov -s 320x240 -map 1:v ~/Documents/PhdBase/Main/Helper\ Projects/More-T2/video/video_cam_1.mov
 runmat=0
 while :
 do
@@ -36,8 +37,8 @@ EOF
 fi
     read -n1 -s
     case "$REPLY" in
-    "1")  echo "Cameras will now be calibrated. Please wait..." && sleep 2 && rosrun more_t2 camera_pose_calibration;;
-    "2")  echo "you chose choice 2" ;;
+    "1")  echo "Cameras will now be calibrated. Please wait..." && sleep 2 && rosrun more_t2 camera_pose_calibration;; 
+    "2")  echo "Logging into Mac for recording Please wait ... " && sleep 2 && ssh ceezeh@chinemelus-mbp.default;;
     "3")  echo "Generating pose from recorded file. Please wait..."&& sleep 2 && runmat=1&&rosrun more_t2 more_t2;;
     "Q")  exit                      ;;
     "q")  echo "case sensitive!!"   ;; 
