@@ -95,7 +95,6 @@ catkin_package(
 ## Your package locations should be listed before other locations
 # include_directories(include)
 include_directories(
-include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
 )
@@ -160,6 +159,7 @@ include
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
+add_library(trackerhelper src/trackerhelper.cpp)
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
@@ -169,13 +169,19 @@ find_package(OpenCV)
 SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -DUSE_GIGE")
 SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -Wl,-E")
 
+include_directories(include $(catkin_INCLUDE_DIRS))
 add_executable(more_t2 src/more_t2.cpp)
-target_link_libraries(more_t2 ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/local/lib/libARToolKitPlus.so )
+
+target_link_libraries(more_t2 trackerhelper ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/local/lib/libARToolKitPlus.so )
 add_dependencies(more_t2 ${catkin_EXPORTED_TARGETS})
 
 add_executable(camera_pose_calibration src/camera_pose_calibration.cpp)
-target_link_libraries(camera_pose_calibration ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/local/lib/libARToolKitPlus.so )
+target_link_libraries(camera_pose_calibration trackerhelper ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/local/lib/libARToolKitPlus.so )
 add_dependencies(camera_pose_calibration ${catkin_EXPORTED_TARGETS})
+
+add_executable(poseGenTest src/poseGenTest.cpp)
+target_link_libraries(poseGenTest trackerhelper ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/local/lib/libARToolKitPlus.so )
+add_dependencies(poseGenTest ${catkin_EXPORTED_TARGETS})
 
 add_executable(recorder src/recorder.cpp)
 target_link_libraries(recorder ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/local/lib/libARToolKitPlus.so )
