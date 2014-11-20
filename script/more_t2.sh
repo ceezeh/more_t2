@@ -27,7 +27,7 @@ do
     ------------------------------
     Please enter your choice:
 
-    Get Cameras'Pose 	(1)
+    Get Cameras'Pose 		(1)
     Record Video 		(2)
     Generate Pose 		(3)
     (Q)uit

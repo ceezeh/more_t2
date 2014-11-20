@@ -62,13 +62,17 @@ public:
 	public:
 		int width;
 		int height;
-		Mat canvas;
+		Mat xcanvas;
+		Mat ycanvas;
+		Mat zcanvas;
 		int pointer;
 		TransGraph(){
 			pointer = 0;
 			width = 4*320;
 			height = 800;
-			canvas = cvCreateImage(cvSize(width, height), IPL_DEPTH_32F, 3);
+			xcanvas = cvCreateImage(cvSize(width, height), IPL_DEPTH_32F, 3);
+			ycanvas = cvCreateImage(cvSize(width, height), IPL_DEPTH_32F, 3);
+			zcanvas = cvCreateImage(cvSize(width, height), IPL_DEPTH_32F, 3);
 			initialiseTrans();
 		}
 		void initialiseTrans();

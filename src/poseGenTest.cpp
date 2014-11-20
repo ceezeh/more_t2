@@ -76,7 +76,9 @@ int main(int argc, char** argv) {
 			bool newResult = helper.processMarkerImg(imgArr[id], helper.tracker, config.captureInfo[0].width,
 					config.captureInfo[0].height, id);
 			if (newResult) {
+
 				helper.calcMarkerPose(helper.tracker, config.cameraInfo[id].camPose, markerPoses[id], config.cameraInfo[id].T);
+				cout << "id: " << id << " marker pose" << endl << markerPoses[id] << endl <<endl ;
 				// Todo: Implement Constant frame rate!
 				// Save pose to file with  time stamp.
 				// To do this, increment each time based on frame rate.

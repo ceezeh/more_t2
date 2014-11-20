@@ -18,8 +18,8 @@ void TrackerHelper::initialiseCapture(int id, VideoCapture &cap) {
 	buffer << file << id << ".mov";
   cap.open(buffer.str().c_str());
 //	cap.open(id);
-	cap.set(CV_CAP_PROP_FRAME_WIDTH, 320);
-	cap.set(CV_CAP_PROP_FRAME_HEIGHT, 240);
+//	cap.set(CV_CAP_PROP_FRAME_WIDTH, 320);
+//	cap.set(CV_CAP_PROP_FRAME_HEIGHT, 240);
 	printf("Opening calibration video number : %d", id);
 	if (!cap.isOpened()) {
 		std::cout << "Could not initialize capturing...\n" << std::endl;
@@ -97,9 +97,6 @@ void TrackerHelper::calcMarkerPose(TrackerMultiMarker* tracker, Mat cam_pose,
 	Mat tmp = Mat(4, 4, CV_32FC1, (float *) nOpenGLMatrix);
 	tmp.copyTo(T);
 
-	Mat pose_t;
-	pose_t.create(6, 1, CV_32F);
-
 	// Calculate orientation.
 
 	// Construct a rotation matrix from global to camera frame.
@@ -110,16 +107,17 @@ void TrackerHelper::calcMarkerPose(TrackerMultiMarker* tracker, Mat cam_pose,
 			cam_pose.at<float>(5, 0), Rc2g);
 	Mat Rm2c = T.rowRange(0, 3).colRange(0, 3).t();
 	Mat Rm2g = Rc2g * Rm2c;
+//	cout <<"Start!"<<endl<<"Rc2g" << Rc2g <<endl<<"Rm2c"<<Rm2c<<endl <<"Rm2g"<< endl << Rm2g;
 
 	// Update Orientation Part of Pose of marker from camera.
 	// heading = atan2(-r20,r00)
 	// Roll A
-	pose_t.at<float>(3, 0) = asin(Rm2g.at<float>(1, 2));
+	marker_pose.at<float>(3, 0) = asin(Rm2g.at<float>(1, 2));
 	// Yaw B Todo: I remove the minus sign on the first element
-	pose_t.at<float>(4, 0) = atan2(-Rm2g.at<float>(0, 2), Rm2g.at<float>(2, 2));
+	marker_pose.at<float>(4, 0) = atan2(-Rm2g.at<float>(0, 2), Rm2g.at<float>(2, 2));
 	// Pitch C
-	pose_t.at<float>(5, 0) = atan2(-Rm2g.at<float>(1, 0), Rm2g.at<float>(1, 1));
-	pose_t.copyTo(marker_pose);
+	marker_pose.at<float>(5, 0) = atan2(-Rm2g.at<float>(1, 0), Rm2g.at<float>(1, 1));
+
 //  marker.mTime = ros::Time::now();
 
 	Mat cPose = (Mat_<float>(4, 1) << 0, 0, 0, 1);
@@ -127,16 +125,20 @@ void TrackerHelper::calcMarkerPose(TrackerMultiMarker* tracker, Mat cam_pose,
 
 	Mat Trans_t;
 	Trans_t.create(3, 4, CV_32F);
-	hconcat(Rc2g, cam_pose.rowRange(0, 3), Trans_t);
+	hconcat(Rc2g, cam_pose.rowRange(0, 3),Trans_t);
+//	hconcat(Rc2g, Mat::zeros(3,1, CV_32F),Trans_t);
+
 	Mat Trans;
 	Trans.create(4, 4, CV_32F);
 	Mat off = (Mat_<float>(1, 4) << 0, 0, 0, 1);
 	vconcat(Trans_t, off, Trans);
-
+//	cout << "cam trans" << endl << cam_pose.rowRange(0, 3) << endl <<endl;
+//	cout <<"Start!"<<endl<<"Rc2g" << Rc2g <<endl<<"Rm2c"<<Rm2c<<endl << endl;
 	// Calculate Translation
 	Mat m = ((Mat) (Trans * marker_t)).rowRange(0, 3);
 	Mat mTrans = marker_pose.rowRange(0, 3);
 	m.copyTo(mTrans);
+//	cout <<"markerpose: " << endl << marker_pose << endl << endl;
 }
 
 // Get transformation matrix from camera to marker.
@@ -153,9 +155,10 @@ bool TrackerHelper::processMarkerImg(IplImage *img, TrackerMultiMarker *tracker,
 	numDetected = tracker->calc((unsigned char*) greyImg->imageData);
 	char name[10];
 	sprintf(name, "%d", id);
-	cvShowImage(name, greyImg);
-	cvWaitKey(1); // Wait for image to be rendered on screen. If not included, no image is shown.
-
+//	cvShowImage(name, greyImg);
+//	cvWaitKey(1); // Wait for image to be rendered on screen. If not included, no image is shown.
+	cvReleaseImage(&greyImg);
+	cvReleaseImage(&tempImg);
 	if (numDetected != 0) {
 //    printf("Number of Markers = %d\n\n", numDetected);
 
@@ -192,9 +195,9 @@ void TrackerHelper::getCameraPose(TrackerMultiMarker* tracker,
 			marker_pose_t->at<float>(5, 0), Rm2g);
 	Mat Rc2g = Rm2g * Rc2m;
 	// Roll A
-	cam_pose->at<float>(3, 0) = asin(Rc2g.at<float>(1, 2));
+	cam_pose->at<float>(3, 0) = -asin(Rc2g.at<float>(1, 2));
 	// Yaw B
-	cam_pose->at<float>(4, 0) = atan2(-Rc2g.at<float>(0, 2),
+	cam_pose->at<float>(4, 0) = -atan2(-Rc2g.at<float>(0, 2),
 			Rc2g.at<float>(2, 2));
 	// Pitch C
 	cam_pose->at<float>(5, 0) = atan2(-Rc2g.at<float>(1, 0),
@@ -220,6 +223,7 @@ void TrackerHelper::getCameraPose(TrackerMultiMarker* tracker,
 	Mat cam = ((Mat) (Trans * cam_t)).rowRange(0, 3);
 	cam.copyTo(cam_trans);
 //  cout << "[Debug] cam_pose'= " << endl << cam_pose << endl << endl;
+
 }
 void TrackerHelper::writeCalibrationToFile(int id, Mat cam_pose) {
 	// Here we save the id, device fullname and camera pose
@@ -252,40 +256,35 @@ void TrackerHelper::writeCalibrationToFile(int id, Mat cam_pose) {
 
 
 void TrackerHelper::TransGraph::initialiseTrans() {
-	rectangle(canvas, cvRect(0, 0, width, height), Scalar(255, 255, 255),
+	rectangle(xcanvas, cvRect(0, 0, width, height), Scalar(255, 255, 255),
 			CV_FILLED);
-	line(canvas, Point(0, 100), Point(width, 100), 0, 4);
-	line(canvas, Point(0, 300), Point(width, 300), 0, 4);
-	line(canvas, Point(0, 800), Point(width, 800), 0, 4);
+	rectangle(ycanvas, cvRect(0, 0, width, height), Scalar(255, 255, 255),
+				CV_FILLED);
+	rectangle(zcanvas, cvRect(0, 0, width, height), Scalar(255, 255, 255),
+				CV_FILLED);
+	line(xcanvas, Point(0, height/2), Point(width, height/2), 0, 4);
+	line(ycanvas, Point(0, height/2), Point(width, height/2), 0, 4);
+	line(zcanvas, Point(0, height), Point(width, height), 0, 4);
 
-	int csize = 200;
-	// Create Grid lines.
-	int step = csize / 20;
-	for (int i = 0; i < csize; i += step) {
-		line(canvas, Point(0, i), Point(width, i), 0);
+	int step = height / 20;
+	for (int i = 0; i < height; i += step) {
+		line(xcanvas, Point(0, i), Point(width, i), 0);
+		line(ycanvas, Point(0, i), Point(width, i), 0);
+		line(zcanvas, Point(0, i), Point(width, i), 0);
 		char text[10];
-		sprintf(text, "%d", csize / 2 - i);
-		putText(canvas, (const char*) text, Point(0, i), FONT_HERSHEY_PLAIN, 1,
+		sprintf(text, "%d", height / 2 - i);
+		putText(xcanvas, (const char*) text, Point(0, i), FONT_HERSHEY_PLAIN, 1,
 				Scalar(0, 0, 255));
+		putText(ycanvas, (const char*) text, Point(0, i), FONT_HERSHEY_PLAIN, 1,
+						Scalar(0, 0, 255));
+		sprintf(text, "%d", height - i);
+		putText(zcanvas, (const char*) text, Point(0, i), FONT_HERSHEY_PLAIN, 1,
+						Scalar(0, 0, 255));
 	}
-	for (int i = csize; i < 2 * csize; i += step) {
-		line(canvas, Point(0, i), Point(width, i), 0);
-		char text[10];
-		sprintf(text, "%1.0f", 1.5 * csize - i);
-		putText(canvas, (const char*) text, Point(0, i), FONT_HERSHEY_PLAIN, 1,
-				Scalar(0, 0, 255));
-	}
-	csize *= 2;
-	for (int i = csize; i < 2 * csize; i += step) {
-		line(canvas, Point(0, i), Point(width, i), 0);
-		char text[10];
-		sprintf(text, "%1.0d", (2 * csize - i) * 2);
-		putText(canvas, (const char*) text, Point(0, i), FONT_HERSHEY_PLAIN, 1,
-				Scalar(0, 0, 255));
-	}
+
 }
 
-void TrackerHelper::TransGraph::drawTrans(Mat trans, const char* title) {
+void TrackerHelper::TransGraph::drawTrans(Mat trans, const char* id) {
 	/*
 	 * The idea is that each time this function is called, the image is shifted by a proportional number of pixels
 	 * to the left and then three separate 2D plots are generated of the trajectory for the x, y, z coordinates.
@@ -298,17 +297,26 @@ void TrackerHelper::TransGraph::drawTrans(Mat trans, const char* title) {
 		pointer = 0;
 		initialiseTrans();
 	}
-	float coord1 = 100 - trans.at<float>(0, 0); // For x represent 40 cm in a whole.
-	float coord2 = 300 - trans.at<float>(0, 1); // For x represent 40 cm in a whole.
-	float coord3 = 800 - trans.at<float>(0, 2) / 2; // For x represent 40 cm in a whole.
-	circle(canvas, Point(pointer, coord1), 1.0, Scalar(0, 255, 0));
-	circle(canvas, Point(pointer, coord2), 1.0, Scalar(255, 0, 0));
-	circle(canvas, Point(pointer, coord3), 1.0, Scalar(255, 0, 255));
+	float coord1 = height/2 - trans.at<float>(0, 0); // For x represent 40 cm in a whole.
+	float coord2 = height/2 - trans.at<float>(0, 1); // For x represent 40 cm in a whole.
+	float coord3 = height - trans.at<float>(0, 2) / 2; // For x represent 40 cm in a whole.
+	circle(xcanvas, Point(pointer, coord1), 1.0, Scalar(0, 255, 0));
+	circle(ycanvas, Point(pointer, coord2), 1.0, Scalar(255, 0, 0));
+	circle(zcanvas, Point(pointer, coord3), 1.0, Scalar(255, 0, 255));
 	// Use currently increment pixel points by increment frame.
 	// where we assume frames move with constant interval.
 
 // Shift image to the left.
-	imshow(title, canvas);
+	stringstream title;
+	title << "x" << id;
+	imshow(title.str().c_str(), xcanvas);
+	title.str("");
+	title << "y" << id;
+	imshow(title.str().c_str(), ycanvas);
+	title.str("");
+		title << "z" << id;
+		imshow(title.str().c_str(), zcanvas);
+
 	waitKey(1);
 }
 
@@ -398,7 +406,6 @@ void TrackerHelper::getCamPose(Mat * poseArray, int index) {
 		exit(EXIT_FAILURE);
 	}
 	char data[100];
-	file.getline(data, 100);
 	float x, y, z, roll, yaw, pitch;
 	file.getline(data, 100);
 	x = atof(data);
@@ -414,7 +421,7 @@ void TrackerHelper::getCamPose(Mat * poseArray, int index) {
 	pitch = atof(data);
 	file.close();
 	*poseArray = (Mat_<float>(6, 1) << x, y, z, roll, yaw, pitch);
-
+//	cout <<"[Debug] cam pose" << *poseArray << endl << endl;
 }
 
 void TrackerHelper::clusterData(Mat samples, Mat &centers) {

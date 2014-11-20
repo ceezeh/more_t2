@@ -67,11 +67,15 @@ int main(int argc, char** argv) {
 	IplImage* imgArr[noCams];
 	int dataSize = 200;
 	float stats[6][dataSize];
+	int count[noCams];
+	int preCount[noCams];
 	for (int id = 0; id < noCams; id++) {
 		Mat temp;
 		config.captureInfo[id].capture.read(temp);
 		imgArr[id] = cvCreateImage(cvSize(temp.cols, temp.rows), IPL_DEPTH_8U,
 				temp.channels());
+		count[id]=0;
+		preCount[id]=0;
 	}
 	Mat samples(dataSize, 6, CV_32F);
 	while (ros::ok()) {
@@ -100,6 +104,7 @@ int main(int argc, char** argv) {
 //        cout << "cam_pose" << endl << config.cameraInfo[id].camPose << endl << endl;
 				if (config.captureInfo[id].newResult) {
 					config.marker.mTime = frameTime;
+					cout <<"Start! id: " << id<< endl;
 					helper.calcMarkerPose(helper.tracker,
 							config.cameraInfo[id].camPose,
 							config.marker.marker_pose, config.cameraInfo[id].T);
@@ -128,38 +133,40 @@ int main(int argc, char** argv) {
 					rotGraph.drawOrientation(config.cameraInfo[id].camPose, "Orientation");
 					cout << "cam_pose,  id: " << id << endl
 							<< config.cameraInfo[id].camPose << endl << endl;
-					static int count;
-					bool skipCamPose = false;
+					bool invalidCamPose = true;
+					preCount[id] ++;
+					if (preCount[id] >= 100) {
+						invalidCamPose = false;
+					}
 					//check if data is valid
 					for (int i = 0; i < 6; i++){
-						float test = config.cameraInfo[id].camPose.at<float>(1, 0);
+						float test = config.cameraInfo[id].camPose.at<float>(i, 0);
 						if (test != test) {
-							 skipCamPose = true;
-						}
-						if (abs(test) > 1e4) {
-							 skipCamPose = true;
+							 invalidCamPose = true;
+						}else	if (abs(test) > 1e4) {
+							 invalidCamPose = true;
 						}
 					}
-					if ((count < dataSize)&&(!skipCamPose)) {
+					if ((count[id] < dataSize)&(!invalidCamPose)) {
 						// Collect sample
-						Mat sample = samples.row(count);
+						Mat sample = samples.row(count[id]);
 						((Mat)config.cameraInfo[id].camPose.t()).copyTo(sample);
-						cout <<"sample" << endl<< samples.row(count) << endl<<endl;
-						stats[0][count] =
-								config.cameraInfo[id].camPose.at<float>(0, 0);
-						stats[1][count] =
-								config.cameraInfo[id].camPose.at<float>(0, 1);
-						stats[2][count] =
-								config.cameraInfo[id].camPose.at<float>(0, 2);
-						stats[3][count] =
-								config.cameraInfo[id].camPose.at<float>(0, 3);
-						stats[4][count] =
-								config.cameraInfo[id].camPose.at<float>(0, 4);
-						stats[5][count] =
-								config.cameraInfo[id].camPose.at<float>(0, 5);
-						count++;
-						cout << "Count: " << count << endl << endl;
-					} else if (count == dataSize) {
+						cout <<"sample" << endl<< samples.row(count[id]) << endl<<endl;
+//						stats[0][count[1]] =
+//								config.cameraInfo[id].camPose.at<float>(0, 0);
+//						stats[1][count[1]] =
+//								config.cameraInfo[id].camPose.at<float>(0, 1);
+//						stats[2][count[1]] =
+//								config.cameraInfo[id].camPose.at<float>(0, 2);
+//						stats[3][count[1]] =
+//								config.cameraInfo[id].camPose.at<float>(0, 3);
+//						stats[4][count[1]] =
+//								config.cameraInfo[id].camPose.at<float>(0, 4);
+//						stats[5][count[1]] =
+//								config.cameraInfo[id].camPose.at<float>(0, 5);
+						count[id]++;
+						cout << "id: "<<id<<"; Count: " << count[id] << endl << endl;
+					} else if (count[id] == dataSize) {
 						//cluster samples
 						Mat centers;
 						helper.clusterData(samples, centers);
