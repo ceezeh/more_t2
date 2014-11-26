@@ -16,8 +16,8 @@ void TrackerHelper::initialiseCapture(int id, VideoCapture &cap) {
 	stringstream buffer;
 	// Todo: Change to right format.
 	buffer << file << id << ".mov";
-//  cap.open(buffer.str().c_str());
-	cap.open(id);
+  cap.open(buffer.str().c_str());
+//	cap.open(id);
 //	cap.set(CV_CAP_PROP_FRAME_WIDTH, 320);
 //	cap.set(CV_CAP_PROP_FRAME_HEIGHT, 240);
 	printf("Opening calibration video number : %d", id);
@@ -50,7 +50,7 @@ int TrackerHelper::configTracker(int width, int height) {
 
 	// load a camera file.
 	if (!tracker->init(
-			"/home/parallels/catkin_ws/src/more_t2/data/cam0/all.cal",
+			"/home/parallels/catkin_ws/src/more_t2/data/cam1/all.cal",
 			"/home/parallels/tools/ARToolKitPlus-2.3.1/sample/data/markerboard_480-499.cfg",
 			1.0f, 1000.0f)) // load MATLAB file
 			{

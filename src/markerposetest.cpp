@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
 
 	/********************Initialise all global variables.********************/
 	int noCams = 1;
-	int id = 0;
+	int id = 1;
 	TrackerHelper::Config config;
 	config.captureInfo = new TrackerHelper::CaptureInfo[noCams];
 	config.cameraInfo = new TrackerHelper::CameraInfo[noCams];
