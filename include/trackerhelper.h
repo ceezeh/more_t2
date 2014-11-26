@@ -45,11 +45,12 @@ public:
 	};
 	struct CameraInfo {
 		Mat camPose;
-		Mat T;
+		Mat Tc;
 		bool cameraPoseKnown;
 	};
 	struct Marker {
 		Mat marker_pose;
+		Mat Tm;
 		int mTime;
 	};
 	struct Config {
@@ -106,6 +107,8 @@ public:
 	void getMarkerPose(TrackerMultiMarker* tracker, int index, Mat &pose);
 	void getCameraPose(TrackerMultiMarker* tracker, Mat* marker_pose_t,
 			Mat* cam_pose, Mat&T);
+	void getCameraT(TrackerMultiMarker* tracker, int index, Mat &Tc, Mat Tm);
+	void getMarkerT(TrackerMultiMarker* tracker, int index, Mat &Tm, Mat Tc);
 	void writeCalibrationToFile(int id, Mat cam_pose);
 	void initialiseTrans();
 	void drawTrans(Mat trans, const char* title);

@@ -16,8 +16,8 @@ void TrackerHelper::initialiseCapture(int id, VideoCapture &cap) {
 	stringstream buffer;
 	// Todo: Change to right format.
 	buffer << file << id << ".mov";
-//  cap.open(buffer.str().c_str());
-	cap.open(id);
+  cap.open(buffer.str().c_str());
+//	cap.open(id);
 //	cap.set(CV_CAP_PROP_FRAME_WIDTH, 320);
 //	cap.set(CV_CAP_PROP_FRAME_HEIGHT, 240);
 	printf("Opening calibration video number : %d", id);
@@ -97,6 +97,29 @@ void TrackerHelper::getMarkerPose(TrackerMultiMarker* tracker, int index, Mat &p
 					pose.at<float>(0, 0) = tmp.at<float>(3, 0);
 					pose.at<float>(1, 0) = tmp.at<float>(3, 1);
 					pose.at<float>(2, 0) = tmp.at<float>(3, 2);
+}
+
+void TrackerHelper::getMarkerT(TrackerMultiMarker* tracker, int index, Mat &Tm, Mat Tc){
+	ARToolKitPlus::ARMarkerInfo markerInfo = tracker->getDetectedMarker(index);
+					ARFloat nOpenGLMatrix[16];
+					ARFloat markerWidth = 100;
+					ARFloat patternCentre[2] = { 0.0f, 0.0f };
+					tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth,
+							nOpenGLMatrix);
+					Mat tmp = Mat(4, 4, CV_32FC1, (float *) nOpenGLMatrix);
+					Mat(Tc*tmp.t()).copyTo(Tm);
+//					cout << "getMarker Tc2m:" << endl << tmp.t() << endl <<"Marker Tm" << endl << Tm << endl;
+}
+void TrackerHelper::getCameraT(TrackerMultiMarker* tracker, int index, Mat &Tc, Mat Tm){
+	ARToolKitPlus::ARMarkerInfo markerInfo = tracker->getDetectedMarker(index);
+					ARFloat nOpenGLMatrix[16];
+					ARFloat markerWidth = 100;
+					ARFloat patternCentre[2] = { 0.0f, 0.0f };
+					tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth,
+							nOpenGLMatrix);
+					Mat tmp = Mat(4, 4, CV_32FC1, (float *) nOpenGLMatrix);
+					Mat(Tm * Mat(tmp.t()).inv()).copyTo(Tc);
+//					cout <<  "getCamera Tc2m:" << endl << Mat(tmp.t()).inv()<< endl <<"Camera Tm" << endl << Tm << endl << "Tc" <<endl << Tc<< endl;
 }
 
 

@@ -11,135 +11,111 @@ using namespace cv;
 using ARToolKitPlus::TrackerMultiMarker;
 
 TrackerHelper helper;
-struct myPoint{
-	float x;
-	float y;
-};
-myPoint bin[4];
-float data[8];
-
-void insertToBin(Mat& pose) {
-	float dist = 99999;
-	int index = 0;
-	for (int i = 0; i < 4; i++) {
-		float test = pow(bin[i].x-pose.at<float>(0,0),2) + pow(bin[i].y-pose.at<float>(1,0), 2);
-		if (test < dist) {
-			dist = test;
-			index = i;
-		}
-	}
-	data[index*2] = pose.at<float>(0,0);
-	data[index*2+1] = pose.at<float>(1,0);
-}
 
 int main(int argc, char** argv) {
-	ros::init(argc, argv, "cam");
+	ros::init(argc, argv, "cam1");
 
 	ros::NodeHandle n("~");
 	ros::Rate loop_rate(10);
+	int noCams = 2;
+
+	n.getParam("noCams", noCams);
 
 	Mat T;
 	T.create(4, 4, CV_32FC1);
-	TrackerHelper::TransGraph transGraph;
-	TrackerHelper::RotGraph rotGraph;
+	// Initialise all global variables.
 
-	/********************Initialise all global variables.********************/
-	int noCams = 1;
-	int id = 0;
+	float timeout = 100; //ms
 	TrackerHelper::Config config;
 	config.captureInfo = new TrackerHelper::CaptureInfo[noCams];
 	config.cameraInfo = new TrackerHelper::CameraInfo[noCams];
 	config.marker.marker_pose = Mat::zeros(6, 1, CV_32F);
-
-	config.cameraInfo[0].camPose = Mat::zeros(6, 1, CV_32F);
-	config.cameraInfo[0].T = Mat::zeros(4, 4, CV_32F);
-	config.cameraInfo[0].cameraPoseKnown = false;
-	helper.initialiseCapture(id, config.captureInfo[0].capture);
-	Mat frame;
-	//Todo: May need to make width and height global like tracker
-	config.captureInfo[0].capture.read(frame);
-	helper.initFrameSize(config.captureInfo[0].capture,
-			config.captureInfo[0].width, config.captureInfo[0].height);
-//    configTracker(config.captureInfo[i].tracker, config.captureInfo[i].width, config.captureInfo[i].height);
-	config.captureInfo[0].newResult = false;
-
+	config.marker.Tm = Mat::eye(4, 4, CV_32F);
+	config.marker.mTime = -99999;
+	for (int i = 0; i < noCams; i++) {
+		config.cameraInfo[i].camPose = Mat::zeros(6, 1, CV_32F);
+		config.cameraInfo[i].Tc = Mat::eye(4, 4, CV_32F);
+		config.cameraInfo[i].cameraPoseKnown = false;
+		helper.initialiseCapture(i, config.captureInfo[i].capture);
+		Mat frame;
+		config.captureInfo[i].capture.read(frame);
+		helper.initFrameSize(config.captureInfo[i].capture,
+				config.captureInfo[i].width, config.captureInfo[i].height);
+		config.captureInfo[i].newResult = false;
+	}
 	helper.configTracker(config.captureInfo[0].width,
 			config.captureInfo[0].height);
 
-// Initialise known camera's position.
-	// Todo:This is for debug only.
-	config.cameraInfo[0].camPose = Mat::zeros(6, 1, CV_32F);
 	config.cameraInfo[0].cameraPoseKnown = true;
 
-	Mat temp;
-	config.captureInfo[0].capture.read(temp);
-	IplImage *img = cvCreateImage(cvSize(temp.cols, temp.rows), IPL_DEPTH_8U,
-			temp.channels());
+	IplImage* imgArr[noCams];
+	for (int id = 0; id < noCams; id++) {
+		Mat temp;
+		config.captureInfo[id].capture.read(temp);
+		imgArr[id] = cvCreateImage(cvSize(temp.cols, temp.rows), IPL_DEPTH_8U,
+				temp.channels());
+	}
 
-	stringstream sbuffer;
-	string path = "/home/parallels/catkin_ws/src/more_t2/posedata/pose_cam_";
-	sbuffer << path << id << ".csv";
+	string path = "/home/parallels/catkin_ws/src/more_t2/posedata/cam.csv";
 	ofstream fp;
-	fp.open(sbuffer.str().c_str(), ios::out | ios::trunc);
-	sbuffer.str("");
+	fp.open(path.c_str(), ios::out | ios::trunc);
 	if (!fp.is_open()) {
 		cout << "Error! Cannot open file to save pose data" << endl;
 		exit(EXIT_FAILURE);
 	}
-
 	int count = 0;
-
-
-
-
-	bool first = true;
 	while (ros::ok()) {
 
-		Mat temp;
-		config.captureInfo[0].capture.read(temp);
-		if (temp.empty()) {
-			ROS_INFO("ERROR: files to grab new image\n");
-			exit(EXIT_FAILURE);
-		}
+		for (int id = 0; id < noCams; id++) {
 
-		img->imageData = (char*) temp.data;
-
-		int numDetected = helper.getNumDetected(img, helper.tracker,
-				config.captureInfo[0].width, config.captureInfo[0].height, 0); // Get transformation matrix from new result.
-
-		if (numDetected == 4) {
-			for (int i = 0; i< numDetected ; i++){
-				helper.getMarkerPose(helper.tracker, i, config.marker.marker_pose);
-				if (first){
-					// Allocate the initial locations in data.
-					data[2*i] = config.marker.marker_pose.at<float>(0, 0);
-					data[2*i+1] = config.marker.marker_pose.at<float>(1, 0);
-					bin[i].x =config.marker.marker_pose.at<float>(0, 0);
-					bin[i].y =config.marker.marker_pose.at<float>(1, 0);
-				} else {
-					// Cluster recent data into bin.
-					insertToBin(config.marker.marker_pose);
-				}
+			Mat temp;
+			config.captureInfo[id].capture.read(temp);
+			int frameTime = config.captureInfo[id].capture.get(
+					CV_CAP_PROP_POS_MSEC);
+			if (temp.empty()) {
+				ROS_INFO("ERROR: files to grab new image\n");
+				exit(EXIT_FAILURE);
 			}
-			first = false;
 
+			imgArr[id]->imageData = (char*) temp.data;
 
-			fp << data[0] << "," << data[1] << ","
-					<< data[2] << "," << data[3] << ","
-					<< data[4] << "," << data[5] << ","
-					<< data[6] << "," << data[7] << "\n";
+			int numDetected = helper.getNumDetected(imgArr[id], helper.tracker,
+					config.captureInfo[id].width, config.captureInfo[id].height,
+					id); // Get transformation matrix from new result.
 
-			count++;
-			cout << "Count: " << count << endl;
+			if (config.cameraInfo[id].cameraPoseKnown) {
+				if (numDetected > 0) {
+					config.marker.mTime = frameTime;
+					cout << "Cam id: " << id << endl;
+					helper.getMarkerT(helper.tracker, 0, config.marker.Tm,config.cameraInfo[id].Tc);
+					cout << "getMarker Tm:" << config.marker.Tm << endl <<"Tc" << config.cameraInfo[id].Tc << endl;
+				}
+			} else if ((numDetected > 0)
+					& ((frameTime - config.marker.mTime) < timeout)) {
+				cout << "cam,  id: " << id<< endl;
+				cout << "getMarker Tm:" << config.marker.Tm << endl;
+				helper.getCameraT(helper.tracker, 0, config.cameraInfo[id].Tc,
+						config.marker.Tm);
+				cout << "getMarker Tm:" << config.marker.Tm << endl <<"Tc" << config.cameraInfo[id].Tc << endl;
+				helper.getMarkerT(helper.tracker, 0, config.marker.Tm,config.cameraInfo[id].Tc);
+				cout << "getMarker Tm:" << config.marker.Tm << endl <<"Tc" << config.cameraInfo[id].Tc << endl;
+				// put data in file.
+				fp << config.cameraInfo[id].Tc.at<float>(0, 3) << ","
+						<< config.cameraInfo[id].Tc.at<float>(1, 3) << ","
+						<< config.cameraInfo[id].Tc.at<float>(2, 3) << "\n";
+				count++;
+				cout << "Count: " << count << endl;
+			}
+
+			ros::spinOnce();
+
+			loop_rate.sleep();
 		}
-
 		if (count == 1500) {
-			fp.close();
 			break;
+			fp.close();
+			config.captureInfo[0].capture.release();
+			config.captureInfo[1].capture.release();
 		}
-		ros::spinOnce();
-		loop_rate.sleep();
 	}
-	config.captureInfo[id].capture.release();
-
 }

@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
 
 	for (int i = 0; i < noCams; i++) {
 		config.cameraInfo[i].camPose = Mat::zeros(6, 1, CV_32F);
-		config.cameraInfo[i].T = Mat::zeros(4, 4, CV_32F);
+		config.cameraInfo[i].Tc = Mat::zeros(4, 4, CV_32F);
 		config.cameraInfo[i].cameraPoseKnown = false;
 		helper.initialiseCapture(i, config.captureInfo[i].capture);
 		Mat frame;
@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
 					cout <<"Start! id: " << id<< endl;
 					helper.calcMarkerPose(helper.tracker,
 							config.cameraInfo[id].camPose,
-							config.marker.marker_pose, config.cameraInfo[id].T);
+							config.marker.marker_pose, config.cameraInfo[id].Tc);
 //          drawOrientation(config.marker.marker_pose);
 //          drawTrans(config.marker.marker_pose);
 //          cout << "Marker Pose from id: " << id << endl << config.marker.marker_pose << endl << endl;
@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
 					helper.getCameraPose(helper.tracker,
 							&config.marker.marker_pose,
 							&config.cameraInfo[id].camPose,
-							config.cameraInfo[id].T);
+							config.cameraInfo[id].Tc);
 //          config.cameraInfo[id].cameraPoseKnown = true;
 					config.captureInfo[id].newResult = false;
 //          cout << "cam_pose: " << config.cameraInfo[id].camPose.at<float>(0,0) << "; marker: " << config.marker.marker_pose.at<float>(0,0) <<"id :" << id << endl << endl;

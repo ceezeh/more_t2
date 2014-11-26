@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
 	TrackerHelper::TransGraph transGraphs[noCams];
 	for (int i = 0; i < noCams; i++) {
 		config.cameraInfo[i].camPose = Mat::zeros(6, 1, CV_32F);
-		config.cameraInfo[i].T = Mat::zeros(4, 4, CV_32F);
+		config.cameraInfo[i].Tc = Mat::zeros(4, 4, CV_32F);
 		helper.initialiseCapture(i, config.captureInfo[i].capture);
 		Mat frame;
 		//Todo: May need to make width and height global like tracker
@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
 					config.captureInfo[0].height, id);
 			if (newResult) {
 
-				helper.calcMarkerPose(helper.tracker, config.cameraInfo[id].camPose, markerPoses[id], config.cameraInfo[id].T);
+				helper.calcMarkerPose(helper.tracker, config.cameraInfo[id].camPose, markerPoses[id], config.cameraInfo[id].Tc);
 				cout << "id: " << id << " marker pose" << endl << markerPoses[id] << endl <<endl ;
 				// Todo: Implement Constant frame rate!
 				// Save pose to file with  time stamp.
