@@ -16,8 +16,8 @@ void TrackerHelper::initialiseCapture(int id, VideoCapture &cap) {
 	stringstream buffer;
 	// Todo: Change to right format.
 	buffer << file << id << ".mov";
-  cap.open(buffer.str().c_str());
-//	cap.open(id);
+//  cap.open(buffer.str().c_str());
+	cap.open(id);
 //	cap.set(CV_CAP_PROP_FRAME_WIDTH, 320);
 //	cap.set(CV_CAP_PROP_FRAME_HEIGHT, 240);
 	printf("Opening calibration video number : %d", id);
@@ -50,7 +50,7 @@ int TrackerHelper::configTracker(int width, int height) {
 
 	// load a camera file.
 	if (!tracker->init(
-			"/home/parallels/catkin_ws/src/more_t2/data/logitech_new.cal",
+			"/home/parallels/catkin_ws/src/more_t2/data/cam0/all.cal",
 			"/home/parallels/tools/ARToolKitPlus-2.3.1/sample/data/markerboard_480-499.cfg",
 			1.0f, 1000.0f)) // load MATLAB file
 			{
@@ -85,6 +85,20 @@ void TrackerHelper::getRotMatrix(float roll, float yaw, float pitch, Mat &R) {
 	// Todo: Notice the transformation.
 	((Mat) temp.t()).copyTo(R);
 }
+
+void TrackerHelper::getMarkerPose(TrackerMultiMarker* tracker, int index, Mat &pose){
+	ARToolKitPlus::ARMarkerInfo markerInfo = tracker->getDetectedMarker(index);
+					ARFloat nOpenGLMatrix[16];
+					ARFloat markerWidth = 81;
+					ARFloat patternCentre[2] = { 0.0f, 0.0f };
+					tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth,
+							nOpenGLMatrix);
+					Mat tmp = Mat(4, 4, CV_32FC1, (float *) nOpenGLMatrix);
+					pose.at<float>(0, 0) = tmp.at<float>(3, 0);
+					pose.at<float>(1, 0) = tmp.at<float>(3, 1);
+					pose.at<float>(2, 0) = tmp.at<float>(3, 2);
+}
+
 
 void TrackerHelper::calcMarkerPose(TrackerMultiMarker* tracker, Mat cam_pose,
 		Mat &marker_pose, Mat &T) {
@@ -166,6 +180,26 @@ bool TrackerHelper::processMarkerImg(IplImage *img, TrackerMultiMarker *tracker,
 	}
 	return false;
 }
+int TrackerHelper::getNumDetected(IplImage *img, TrackerMultiMarker *tracker,
+		int width, int height, int id) {
+	int numDetected = 0;
+	IplImage *greyImg = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 1);
+
+	IplImage *tempImg = cvCreateImage(cvSize(width, height), img->depth, 1);
+	cvCvtColor(img, tempImg, CV_RGB2GRAY);
+	cvAdaptiveThreshold(tempImg, greyImg, 255.0, CV_ADAPTIVE_THRESH_GAUSSIAN_C,
+			CV_THRESH_BINARY, 111);
+	numDetected = tracker->calc((unsigned char*) greyImg->imageData);
+	char name[10];
+	sprintf(name, "%d", id);
+	cvShowImage(name, greyImg);
+	cvWaitKey(1); // Wait for image to be rendered on screen. If not included, no image is shown.
+	cvReleaseImage(&greyImg);
+	cvReleaseImage(&tempImg);
+	return numDetected;
+//
+}
+
 void TrackerHelper::getCameraPose(TrackerMultiMarker* tracker,
 		Mat* marker_pose_t, Mat* cam_pose, Mat&T) {
 	ARToolKitPlus::ARMarkerInfo markerInfo = tracker->getDetectedMarker(0);

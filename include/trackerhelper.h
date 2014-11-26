@@ -56,8 +56,8 @@ public:
 		CaptureInfo *captureInfo;
 		CameraInfo *cameraInfo;
 		Marker marker;
-		//    TrackerMultiMarker * tracker;
 	};
+
 	class TransGraph{
 	public:
 		int width;
@@ -101,6 +101,9 @@ public:
 			Mat &marker_pose, Mat &T);
 	bool processMarkerImg(IplImage *img, TrackerMultiMarker *tracker, int width,
 			int height, int id);
+	int getNumDetected(IplImage *img, TrackerMultiMarker *tracker, int width,
+			int height, int id);
+	void getMarkerPose(TrackerMultiMarker* tracker, int index, Mat &pose);
 	void getCameraPose(TrackerMultiMarker* tracker, Mat* marker_pose_t,
 			Mat* cam_pose, Mat&T);
 	void writeCalibrationToFile(int id, Mat cam_pose);

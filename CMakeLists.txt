@@ -159,17 +159,20 @@ include_directories(
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
-add_library(trackerhelper src/trackerhelper.cpp)
+
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 find_package(OpenCV)
-
 # Additional Linker flags for pylon
 SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -DUSE_GIGE")
 SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -Wl,-E")
+set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /usr/local/MATLAB/R2012b/bin/glnxa64)
 
-include_directories(include $(catkin_INCLUDE_DIRS))
+include_directories(include $(catkin_INCLUDE_DIRS) /usr/local/MATLAB/R2012b/extern/include)
+link_directories(/usr/local/MATLAB/R2012b/bin/glnax64)
+add_library(trackerhelper src/trackerhelper.cpp)
+target_link_libraries(trackerhelper ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/local/lib/libARToolKitPlus.so )
 add_executable(more_t2 src/more_t2.cpp)
 
 target_link_libraries(more_t2 trackerhelper ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/local/lib/libARToolKitPlus.so )
@@ -190,3 +193,7 @@ add_dependencies(recorder ${catkin_EXPORTED_TARGETS})
 add_executable(streamtest src/streamtest.cpp)
 target_link_libraries(streamtest ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/local/lib/libARToolKitPlus.so )
 add_dependencies(streamtest ${catkin_EXPORTED_TARGETS})
+
+add_executable(markerposetest src/markerposetest.cpp)
+target_link_libraries(markerposetest trackerhelper ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/local/lib/libARToolKitPlus.so)
+add_dependencies(markerposetest ${catkin_EXPORTED_TARGETS})
