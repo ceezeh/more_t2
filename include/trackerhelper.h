@@ -96,8 +96,10 @@ public:
 
 	void initialiseCapture(int id, VideoCapture &cap);
 	void initFrameSize(VideoCapture &cap, int &width, int &height);
-	int configTracker(int width, int height);
+	int configTracker( int width, int height);
 	void getRotMatrix(float roll, float yaw, float pitch, Mat &R);
+	void calRotYXZ(float pitch, float yaw, float roll, Mat &R);
+	void getAnglesYXZ(float &roll, float &yaw, float &pitch, Mat R);
 	void calcMarkerPose(TrackerMultiMarker* tracker, Mat cam_pose,
 			Mat &marker_pose, Mat &T);
 	bool processMarkerImg(IplImage *img, TrackerMultiMarker *tracker, int width,

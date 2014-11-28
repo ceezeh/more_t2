@@ -3,7 +3,7 @@ using namespace std;
 using namespace cv;
 using ARToolKitPlus::TrackerMultiMarker;
 
-Mat cam_pose;
+
 TrackerHelper helper;
 
 int main(int argc, char** argv) {
@@ -30,9 +30,15 @@ int main(int argc, char** argv) {
 		helper.initFrameSize(capture, width, height);
 
 		// Get the camera's pose
-
-		helper.getCamPose(&cam_pose, id);
-
+		Mat cam_pose;
+//		helper.getCamPose(&cam_pose, id);
+		//Todo:remove this for release!!
+		if (id == 0) {
+			cam_pose = Mat::zeros(6,1,CV_32FC1);
+		} else if (id == 1){
+//			cam_pose = (Mat_<float>(6, 1) <<  986.1998, 13.9150, 1034.5, -0.1350, -0.4107,  0.1685);
+			cam_pose = (Mat_<float>(6, 1) <<  986.1998, 13.9150, 1034.5, -0.1350, -0.4107,  0.1685);
+		}
 		if (helper.configTracker(width, height) != 0) {
 			cout << "Error! Cannot configure tracker." << endl;
 			exit(EXIT_FAILURE);

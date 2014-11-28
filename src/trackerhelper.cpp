@@ -8,6 +8,7 @@
 
 // The pose of the initial camera.
 
+int markerWidth = 102;
 void TrackerHelper::initialiseCapture(int id, VideoCapture &cap) {
 	// Write a function to open camera
 	// we will use an OpenCV capture
@@ -16,7 +17,7 @@ void TrackerHelper::initialiseCapture(int id, VideoCapture &cap) {
 	stringstream buffer;
 	// Todo: Change to right format.
 	buffer << file << id << ".mov";
-  cap.open(buffer.str().c_str());
+	cap.open(buffer.str().c_str());
 //	cap.open(id);
 //	cap.set(CV_CAP_PROP_FRAME_WIDTH, 320);
 //	cap.set(CV_CAP_PROP_FRAME_HEIGHT, 240);
@@ -86,48 +87,108 @@ void TrackerHelper::getRotMatrix(float roll, float yaw, float pitch, Mat &R) {
 	((Mat) temp.t()).copyTo(R);
 }
 
-void TrackerHelper::getMarkerPose(TrackerMultiMarker* tracker, int index, Mat &pose){
+void TrackerHelper::getMarkerPose(TrackerMultiMarker* tracker, int index,
+		Mat &pose) {
 	ARToolKitPlus::ARMarkerInfo markerInfo = tracker->getDetectedMarker(index);
-					ARFloat nOpenGLMatrix[16];
-					ARFloat markerWidth = 81;
-					ARFloat patternCentre[2] = { 0.0f, 0.0f };
-					tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth,
-							nOpenGLMatrix);
-					Mat tmp = Mat(4, 4, CV_32FC1, (float *) nOpenGLMatrix);
-					pose.at<float>(0, 0) = tmp.at<float>(3, 0);
-					pose.at<float>(1, 0) = tmp.at<float>(3, 1);
-					pose.at<float>(2, 0) = tmp.at<float>(3, 2);
+	ARFloat nOpenGLMatrix[16];
+	ARFloat patternCentre[2] = { 0.0f, 0.0f };
+	tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth,
+			nOpenGLMatrix);
+	Mat tmp = Mat(4, 4, CV_32FC1, (float *) nOpenGLMatrix);
+	pose.at<float>(0, 0) = tmp.at<float>(3, 0);
+	pose.at<float>(1, 0) = tmp.at<float>(3, 1);
+	pose.at<float>(2, 0) = tmp.at<float>(3, 2);
 }
 
-void TrackerHelper::getMarkerT(TrackerMultiMarker* tracker, int index, Mat &Tm, Mat Tc){
+void TrackerHelper::getMarkerT(TrackerMultiMarker* tracker, int index, Mat &Tm,
+		Mat Tc) {
 	ARToolKitPlus::ARMarkerInfo markerInfo = tracker->getDetectedMarker(index);
-					ARFloat nOpenGLMatrix[16];
-					ARFloat markerWidth = 100;
-					ARFloat patternCentre[2] = { 0.0f, 0.0f };
-					tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth,
-							nOpenGLMatrix);
-					Mat tmp = Mat(4, 4, CV_32FC1, (float *) nOpenGLMatrix);
-					Mat(Tc*tmp.t()).copyTo(Tm);
+	ARFloat nOpenGLMatrix[16];
+	ARFloat patternCentre[2] = { 0.0f, 0.0f };
+	tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth,
+			nOpenGLMatrix);
+	Mat tmp = Mat(4, 4, CV_32FC1, (float *) nOpenGLMatrix);
+	Mat(Tc * tmp.t()).copyTo(Tm);
 //					cout << "getMarker Tc2m:" << endl << tmp.t() << endl <<"Marker Tm" << endl << Tm << endl;
 }
-void TrackerHelper::getCameraT(TrackerMultiMarker* tracker, int index, Mat &Tc, Mat Tm){
+void TrackerHelper::getCameraT(TrackerMultiMarker* tracker, int index, Mat &Tc,
+		Mat Tm) {
 	ARToolKitPlus::ARMarkerInfo markerInfo = tracker->getDetectedMarker(index);
-					ARFloat nOpenGLMatrix[16];
-					ARFloat markerWidth = 100;
-					ARFloat patternCentre[2] = { 0.0f, 0.0f };
-					tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth,
-							nOpenGLMatrix);
-					Mat tmp = Mat(4, 4, CV_32FC1, (float *) nOpenGLMatrix);
-					Mat(Tm * Mat(tmp.t()).inv()).copyTo(Tc);
+	ARFloat nOpenGLMatrix[16];
+	ARFloat patternCentre[2] = { 0.0f, 0.0f };
+	tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth,
+			nOpenGLMatrix);
+	Mat tmp = Mat(4, 4, CV_32FC1, (float *) nOpenGLMatrix);
+	Mat(Tm * Mat(tmp.t()).inv(CV_LU)).copyTo(Tc);
 //					cout <<  "getCamera Tc2m:" << endl << Mat(tmp.t()).inv()<< endl <<"Camera Tm" << endl << Tm << endl << "Tc" <<endl << Tc<< endl;
 }
 
+// Todo added -ve sign to sin roll in rodrigues's formula.
+// Todo The function produces inaccuracies in rotation.
+void TrackerHelper::calRotYXZ(float pitch, float yaw, float roll, Mat &R) {
+	// Todo: Notice the transformation.
+	float xd, zd;
+	// Careful recovery of direction from tan
+	if ((yaw >= 0) & (yaw < CV_PI / 2)) {
+		xd = abs(tan(yaw)); // xd is the sin part.
+		zd = 1;
+	} else if ((yaw >= CV_PI / 2) & (yaw < CV_PI)) {
+		xd = abs(tan(yaw));
+		zd = -1;
+	} else if ((yaw >= -CV_PI) & (yaw < -CV_PI / 2)) {
+		xd = -abs(tan(yaw));
+		zd = -1;
+	} else if ((yaw >= -CV_PI / 2) & (yaw < 0)) {
+		xd = -abs(tan(yaw));
+		zd = 1;
+	}
 
+	float yd = sin(pitch);
+
+	Mat Zm = (Mat_<float>(3, 1) << xd, yd, zd);
+	Mat X0 = (Mat_<float>(3, 1) << zd, 0, -xd);
+	Mat Y0 = Zm.cross(X0);
+	Mat zm, ym, xm;
+	normalize(Zm, zm);
+	Mat Ym = Y0 * cos(roll) + zm.cross(Y0) * sin(-roll)
+			+ (zm * zm.dot(Y0) * (1 - cos(roll)));
+
+	normalize(Ym, ym);
+	xm = ym.cross(zm);
+//	cout << "norm xm" << norm(xm) << endl;
+	Mat R0x = R.col(0);
+	xm.copyTo(R0x);
+	Mat R1x = R.col(1);
+	ym.copyTo(R1x);
+	Mat R2x = R.col(2);
+	zm.copyTo(R2x);
+
+}
+void TrackerHelper::getAnglesYXZ(float &pitch, float &yaw, float &roll, Mat R) {
+
+	Mat Zm;
+	normalize(R.col(2), Zm);
+
+	yaw = atan2(Zm.at<float>(0, 0), Zm.at<float>(2, 0));
+	pitch = asin(Zm.at<float>(1, 0));
+
+//		cout << "Zm" << Zm << endl;
+	Mat X0 = (Mat_<float>(3, 1) << Zm.at<float>(2, 0), 0, -Zm.at<float>(0, 0));
+//		cout << "X0" << X0 << endl;
+	Mat Ym = R.col(1);
+	Mat Y0 = Zm.cross(X0);
+//		cout << "Ym" << Ym << endl;
+//		cout << "X0 dot Y" << Xm.dot(Y)<< endl;
+//		cout << "norm Xm" << norm(Xm)<< endl;
+//		cout << "Ym dot Y" << Ym.dot(Y)<< endl;
+//		cout << "norm Ym" << norm(Ym)<< endl;
+	roll = atan2(X0.dot(Ym) / norm(X0), Y0.dot(Ym) / norm(Y0));
+
+}
 void TrackerHelper::calcMarkerPose(TrackerMultiMarker* tracker, Mat cam_pose,
 		Mat &marker_pose, Mat &T) {
 	ARToolKitPlus::ARMarkerInfo markerInfo = tracker->getDetectedMarker(0);
 	ARFloat nOpenGLMatrix[16];
-	ARFloat markerWidth = 102;
 	ARFloat patternCentre[2] = { 0.0f, 0.0f };
 	tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth,
 			nOpenGLMatrix);
@@ -139,34 +200,31 @@ void TrackerHelper::calcMarkerPose(TrackerMultiMarker* tracker, Mat cam_pose,
 	// Construct a rotation matrix from global to camera frame.
 	// First construct rotation matrix from global to camera frame
 	Mat Rc2g;
-	Rc2g.create(3, 3, CV_32F);
-	getRotMatrix(cam_pose.at<float>(3, 0), cam_pose.at<float>(4, 0),
+	Rc2g.create(3, 3, CV_32FC1);
+	calRotYXZ(cam_pose.at<float>(3, 0), cam_pose.at<float>(4, 0),
 			cam_pose.at<float>(5, 0), Rc2g);
 	Mat Rm2c = T.rowRange(0, 3).colRange(0, 3).t();
 	Mat Rm2g = Rc2g * Rm2c;
-//	cout <<"Start!"<<endl<<"Rc2g" << Rc2g <<endl<<"Rm2c"<<Rm2c<<endl <<"Rm2g"<< endl << Rm2g;
-
-	// Update Orientation Part of Pose of marker from camera.
-	// heading = atan2(-r20,r00)
-	// Roll A
-	marker_pose.at<float>(3, 0) = asin(Rm2g.at<float>(1, 2));
-	// Yaw B Todo: I remove the minus sign on the first element
-	marker_pose.at<float>(4, 0) = atan2(-Rm2g.at<float>(0, 2), Rm2g.at<float>(2, 2));
-	// Pitch C
-	marker_pose.at<float>(5, 0) = atan2(-Rm2g.at<float>(1, 0), Rm2g.at<float>(1, 1));
-
+	getAnglesYXZ(marker_pose.at<float>(3, 0), marker_pose.at<float>(4, 0),
+			marker_pose.at<float>(5, 0), Rm2g);
 //  marker.mTime = ros::Time::now();
+
+	// test rotation
+	Mat Rm2g_t = Mat(3, 3, CV_32FC1);
+	calRotYXZ(marker_pose.at<float>(3, 0), marker_pose.at<float>(4, 0),
+			marker_pose.at<float>(5, 0), Rm2g_t);
+	cout << "Start!" << endl << "Rm2g" << Rm2g << endl << "Rm2g_t" << Rm2g_t
+			<< endl << endl;
 
 	Mat cPose = (Mat_<float>(4, 1) << 0, 0, 0, 1);
 	Mat marker_t = ((Mat) (T.t() * cPose));
 
 	Mat Trans_t;
-	Trans_t.create(3, 4, CV_32F);
-	hconcat(Rc2g, cam_pose.rowRange(0, 3),Trans_t);
-//	hconcat(Rc2g, Mat::zeros(3,1, CV_32F),Trans_t);
+	Trans_t.create(3, 4, CV_32FC1);
+	hconcat(Rc2g, cam_pose.rowRange(0, 3), Trans_t);
 
 	Mat Trans;
-	Trans.create(4, 4, CV_32F);
+	Trans.create(4, 4, CV_32FC1);
 	Mat off = (Mat_<float>(1, 4) << 0, 0, 0, 1);
 	vconcat(Trans_t, off, Trans);
 //	cout << "cam trans" << endl << cam_pose.rowRange(0, 3) << endl <<endl;
@@ -177,7 +235,6 @@ void TrackerHelper::calcMarkerPose(TrackerMultiMarker* tracker, Mat cam_pose,
 	m.copyTo(mTrans);
 //	cout <<"markerpose: " << endl << marker_pose << endl << endl;
 }
-
 // Get transformation matrix from camera to marker.
 // Returns true if a new transformation matrix was obtained.
 bool TrackerHelper::processMarkerImg(IplImage *img, TrackerMultiMarker *tracker,
@@ -227,7 +284,6 @@ void TrackerHelper::getCameraPose(TrackerMultiMarker* tracker,
 		Mat* marker_pose_t, Mat* cam_pose, Mat&T) {
 	ARToolKitPlus::ARMarkerInfo markerInfo = tracker->getDetectedMarker(0);
 	ARFloat nOpenGLMatrix[16];
-	ARFloat markerWidth = 102;
 	ARFloat patternCentre[2] = { 0.0f, 0.0f };
 	tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth,
 			nOpenGLMatrix);
@@ -247,33 +303,29 @@ void TrackerHelper::getCameraPose(TrackerMultiMarker* tracker,
 	// Rg2m has to be reconstructed from marker orientation
 	Mat Rc2m = T.rowRange(0, 3).colRange(0, 3);
 	Mat Rm2g;
-	Rm2g.create(3, 3, CV_32F);
-	getRotMatrix(marker_pose_t->at<float>(3, 0), marker_pose_t->at<float>(4, 0),
+	Rm2g.create(3, 3, CV_32FC1);
+	calRotYXZ(marker_pose_t->at<float>(3, 0), marker_pose_t->at<float>(4, 0),
 			marker_pose_t->at<float>(5, 0), Rm2g);
 	Mat Rc2g = Rm2g * Rc2m;
-	// Roll A
-	cam_pose->at<float>(3, 0) = -asin(Rc2g.at<float>(1, 2));
-	// Yaw B
-	cam_pose->at<float>(4, 0) = -atan2(-Rc2g.at<float>(0, 2),
-			Rc2g.at<float>(2, 2));
-	// Pitch C
-	cam_pose->at<float>(5, 0) = atan2(-Rc2g.at<float>(1, 0),
-			Rc2g.at<float>(1, 1));
+	getAnglesYXZ(cam_pose->at<float>(3, 0), cam_pose->at<float>(4, 0),
+			cam_pose->at<float>(5, 0), Rc2g);
 
 	// Translation
 	// first get the camera's position in terms of the marker coordinates
 	// Reconstruct transformation matrix from world to marker
 	Mat mPose = (Mat_<float>(4, 1) << 0, 0, 0, 1);
-	Mat cam_t = ((Mat) (T.t().inv() * mPose));
+	Mat cam_t = ((Mat) (T.t().inv(CV_SVD) * mPose));
+	Mat off = (Mat_<float>(1, 4) << 0, 0, 0, 1);
+	//Calculate T inv
+
 	// Then transforms from the marker frame to the global frame.
 	// Frame reconstruct the transformation matrix
 
 	Mat Trans_t;
-	Trans_t.create(3, 4, CV_32F);
+	Trans_t.create(3, 4, CV_32FC1);
 	hconcat(Rm2g, marker_pose_t->rowRange(0, 3), Trans_t);
 	Mat Trans;
-	Trans.create(4, 4, CV_32F);
-	Mat off = (Mat_<float>(1, 4) << 0, 0, 0, 1);
+	Trans.create(4, 4, CV_32FC1);
 	vconcat(Trans_t, off, Trans);
 	//  cout << "trans" << endl << Trans << endl << endl << "marker pose" << endl<< *marker_pose_t << endl<< endl<< "Rg2m" << endl << Rg2m<< endl << endl;
 
@@ -311,16 +363,15 @@ void TrackerHelper::writeCalibrationToFile(int id, Mat cam_pose) {
 //  cout << "Written to file!" << endl;
 }
 
-
 void TrackerHelper::TransGraph::initialiseTrans() {
 	rectangle(xcanvas, cvRect(0, 0, width, height), Scalar(255, 255, 255),
-			CV_FILLED);
+	CV_FILLED);
 	rectangle(ycanvas, cvRect(0, 0, width, height), Scalar(255, 255, 255),
-				CV_FILLED);
+	CV_FILLED);
 	rectangle(zcanvas, cvRect(0, 0, width, height), Scalar(255, 255, 255),
-				CV_FILLED);
-	line(xcanvas, Point(0, height/2), Point(width, height/2), 0, 4);
-	line(ycanvas, Point(0, height/2), Point(width, height/2), 0, 4);
+	CV_FILLED);
+	line(xcanvas, Point(0, height / 2), Point(width, height / 2), 0, 4);
+	line(ycanvas, Point(0, height / 2), Point(width, height / 2), 0, 4);
 	line(zcanvas, Point(0, height), Point(width, height), 0, 4);
 
 	int step = height / 20;
@@ -333,10 +384,10 @@ void TrackerHelper::TransGraph::initialiseTrans() {
 		putText(xcanvas, (const char*) text, Point(0, i), FONT_HERSHEY_PLAIN, 1,
 				Scalar(0, 0, 255));
 		putText(ycanvas, (const char*) text, Point(0, i), FONT_HERSHEY_PLAIN, 1,
-						Scalar(0, 0, 255));
+				Scalar(0, 0, 255));
 		sprintf(text, "%d", height - i);
 		putText(zcanvas, (const char*) text, Point(0, i), FONT_HERSHEY_PLAIN, 1,
-						Scalar(0, 0, 255));
+				Scalar(0, 0, 255));
 	}
 
 }
@@ -347,15 +398,14 @@ void TrackerHelper::TransGraph::drawTrans(Mat trans, const char* id) {
 	 * to the left and then three separate 2D plots are generated of the trajectory for the x, y, z coordinates.
 	 */
 	// x-axis
-
 	// Check for wrap around.
 	pointer += 5;
 	if (pointer >= width) {
 		pointer = 0;
 		initialiseTrans();
 	}
-	float coord1 = height/2 - trans.at<float>(0, 0); // For x represent 40 cm in a whole.
-	float coord2 = height/2 - trans.at<float>(0, 1); // For x represent 40 cm in a whole.
+	float coord1 = height / 2 - trans.at<float>(0, 0); // For x represent 40 cm in a whole.
+	float coord2 = height / 2 - trans.at<float>(0, 1); // For x represent 40 cm in a whole.
 	float coord3 = height - trans.at<float>(0, 2) / 2; // For x represent 40 cm in a whole.
 	circle(xcanvas, Point(pointer, coord1), 1.0, Scalar(0, 255, 0));
 	circle(ycanvas, Point(pointer, coord2), 1.0, Scalar(255, 0, 0));
@@ -371,17 +421,17 @@ void TrackerHelper::TransGraph::drawTrans(Mat trans, const char* id) {
 	title << "y" << id;
 	imshow(title.str().c_str(), ycanvas);
 	title.str("");
-		title << "z" << id;
-		imshow(title.str().c_str(), zcanvas);
+	title << "z" << id;
+	imshow(title.str().c_str(), zcanvas);
 
 	waitKey(1);
 }
 
-
 void TrackerHelper::RotGraph::initialiseDashBoard() {
-//	rectangle(dashBoard, cvRect(0,0, 480, 480), Scalar(255, 255, 255), CV_FILLED );
-	circle(dashBoard, Point(dSize / 2, dSize / 2), 400, Scalar(255, 255, 255),
+	rectangle(dashBoard, cvRect(0, 0, dSize, dSize), Scalar(255, 255, 255),
 			CV_FILLED);
+//	circle(dashBoard, Point(dSize / 2, dSize / 2), 400, Scalar(255, 255, 255),
+//			CV_FILLED);
 	int step = 360 / 36;
 	for (int i = -180; i <= 180; i += step) {
 		line(dashBoard, Point((dSize / 2) + (2 * i), (dSize / 2) - 50),
@@ -413,23 +463,22 @@ float TrackerHelper::RotGraph::radsToDegrees(float angle) {
 void TrackerHelper::RotGraph::drawOrientation(Mat pose, const char* title) {
 	initialiseDashBoard();
 	// orientation is usually in radians. Need to transform to degrees.
-	float roll = -2 * radsToDegrees(pose.at<float>(0, 3));
+	float pitch = 2 * radsToDegrees(pose.at<float>(0, 3));
 	float yaw = 2 * radsToDegrees(pose.at<float>(0, 4));
-	float pitch = pose.at<float>(0, 5);
+	float roll = pose.at<float>(0, 5);
 
 	Mat centrePoint;
-	centrePoint.create(2, 1, CV_32F);
+	centrePoint.create(2, 1, CV_32FC1);
 
-	// Account for roll
-	centrePoint.at<float>(0, 1) = dSize / 2 + roll; // y-axis
+	// Account for pitch
+	centrePoint.at<float>(0, 1) = dSize / 2 - pitch; // y-axis
 	centrePoint.at<float>(0, 0) = dSize / 2; // x-axis
 
 	// Account for yaw
 	centrePoint.at<float>(0, 0) += yaw; // x-axis
 
-	// Account for pitch
-	Mat T = (Mat_<float>(2, 2) << cos(pitch), -sin(pitch), sin(pitch), cos(
-			pitch));
+	// Account for roll
+	Mat T = (Mat_<float>(2, 2) << cos(roll), -sin(roll), sin(roll), cos(roll));
 	Mat pointl = (Mat_<float>(2, 1) << -50, 0);
 	Mat pointr = (Mat_<float>(2, 1) << 50, 0);
 	pointl = T * pointl;
@@ -482,10 +531,12 @@ void TrackerHelper::getCamPose(Mat * poseArray, int index) {
 }
 
 void TrackerHelper::clusterData(Mat samples, Mat &centers) {
-	  int clusterCount = 5;
-	  Mat labels;
-	  int attempts = 5;
-	  kmeans(samples, clusterCount, labels, TermCriteria(CV_TERMCRIT_ITER|CV_TERMCRIT_EPS, 10000, 0.01), attempts, KMEANS_PP_CENTERS, centers );
-	  cout << "Centers: " << endl<< centers << endl;
+	int clusterCount = 5;
+	Mat labels;
+	int attempts = 5;
+	kmeans(samples, clusterCount, labels,
+			TermCriteria(CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 10000, 0.01),
+			attempts, KMEANS_PP_CENTERS, centers);
+	cout << "Centers: " << endl << centers << endl;
 
 }

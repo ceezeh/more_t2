@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
 				config.captureInfo[i].width, config.captureInfo[i].height);
 		config.captureInfo[i].newResult = false;
 	}
-	helper.configTracker(config.captureInfo[0].width,
+	helper.configTracker( config.captureInfo[0].width,
 			config.captureInfo[0].height);
 
 	config.cameraInfo[0].cameraPoseKnown = true;
@@ -70,6 +70,10 @@ int main(int argc, char** argv) {
 
 			Mat temp;
 			config.captureInfo[id].capture.read(temp);
+			config.captureInfo[id].capture.read(temp);
+			config.captureInfo[id].capture.read(temp);
+			config.captureInfo[id].capture.read(temp);
+			config.captureInfo[id].capture.read(temp);
 			int frameTime = config.captureInfo[id].capture.get(
 					CV_CAP_PROP_POS_MSEC);
 			if (temp.empty()) {
@@ -87,31 +91,48 @@ int main(int argc, char** argv) {
 				if (numDetected > 0) {
 					config.marker.mTime = frameTime;
 					cout << "Cam id: " << id << endl;
-					helper.getMarkerT(helper.tracker, 0, config.marker.Tm,config.cameraInfo[id].Tc);
-					cout << "getMarker Tm:" << config.marker.Tm << endl <<"Tc" << config.cameraInfo[id].Tc << endl;
+					helper.calcMarkerPose(helper.tracker, config.cameraInfo[id].camPose, config.marker.marker_pose,
+															config.marker.Tm);
+					cout << "Marker Pose:"<< endl << config.marker.marker_pose << endl;
 				}
 			} else if ((numDetected > 0)
 					& ((frameTime - config.marker.mTime) < timeout)) {
 				cout << "cam,  id: " << id<< endl;
-				cout << "getMarker Tm:" << config.marker.Tm << endl;
-				helper.getCameraT(helper.tracker, 0, config.cameraInfo[id].Tc,
+				helper.getCameraPose(helper.tracker, &config.marker.marker_pose,&config.cameraInfo[id].camPose,
 						config.marker.Tm);
-				cout << "getMarker Tm:" << config.marker.Tm << endl <<"Tc" << config.cameraInfo[id].Tc << endl;
-				helper.getMarkerT(helper.tracker, 0, config.marker.Tm,config.cameraInfo[id].Tc);
-				cout << "getMarker Tm:" << config.marker.Tm << endl <<"Tc" << config.cameraInfo[id].Tc << endl;
-				// put data in file.
-				fp << config.cameraInfo[id].Tc.at<float>(0, 3) << ","
-						<< config.cameraInfo[id].Tc.at<float>(1, 3) << ","
-						<< config.cameraInfo[id].Tc.at<float>(2, 3) << "\n";
+				cout << "Camera Pose" << endl<<config.cameraInfo[id].camPose << endl;
+				helper.calcMarkerPose(helper.tracker, config.cameraInfo[id].camPose, config.marker.marker_pose,
+										config.marker.Tm);
+				cout << "Marker Pose:"<< endl << config.marker.marker_pose << endl;
+//				 put data in file.
+				bool invalidMarkerPose = false;
+								for (int i = 0; i < 6; i++) {
+									float test = config.cameraInfo[id].camPose.at<float>(i, 0);
+									if (test != test) {
+										invalidMarkerPose = true;
+									} else if (abs(test) > 1e4) {
+										invalidMarkerPose = true;
+									}
+								}
+								if (!invalidMarkerPose) {
+				for (int i = 0; i < 6 ; i++) {
+						fp << config.cameraInfo[id].camPose.at<float>(i,0);
+						if (i==5){
+							 fp<<"\n";
+						}else{
+							fp <<",";
+						}
+				}
 				count++;
 				cout << "Count: " << count << endl;
+								}
 			}
 
 			ros::spinOnce();
 
 			loop_rate.sleep();
 		}
-		if (count == 1500) {
+		if (count == 200) {
 			break;
 			fp.close();
 			config.captureInfo[0].capture.release();

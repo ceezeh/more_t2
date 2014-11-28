@@ -9,7 +9,7 @@ figure;
 hold on;
 axis equal;
 
-plot3(P0(:,1), P0(:,2),P0(:,3), '-.r*');
+plot3(P0(15:end,1), P0(15:end,2),P0(15:end,3), '-.r*');
 
 plot3(P1(:,1), P1(:,2),P1(:,3), '-.bo');
 % hold off;
