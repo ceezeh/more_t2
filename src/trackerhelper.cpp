@@ -51,7 +51,7 @@ int TrackerHelper::configTracker(int width, int height) {
 
 	// load a camera file.
 	if (!tracker->init(
-			"/home/parallels/catkin_ws/src/more_t2/data/cam0/all.cal",
+			"/home/parallels/catkin_ws/src/more_t2/data/cam1/all.cal",
 			"/home/parallels/tools/ARToolKitPlus-2.3.1/sample/data/markerboard_480-499.cfg",
 			1.0f, 1000.0f)) // load MATLAB file
 			{
