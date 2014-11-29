@@ -11,25 +11,27 @@ using namespace cv;
 using ARToolKitPlus::TrackerMultiMarker;
 
 TrackerHelper helper;
-struct myPoint{
+struct myPoint {
 	float x;
 	float y;
+	float z;
 };
-myPoint bin[4];
-float data[8];
+Mat bin[4];
+float data[12];
 
 void insertToBin(Mat& pose) {
 	float dist = 99999;
 	int index = 0;
 	for (int i = 0; i < 4; i++) {
-		float test = pow(bin[i].x-pose.at<float>(0,0),2) + pow(bin[i].y-pose.at<float>(1,0), 2);
+		float test = norm(pose.rowRange(0, 3) - bin[i]);
 		if (test < dist) {
 			dist = test;
 			index = i;
 		}
 	}
-	data[index*2] = pose.at<float>(0,0);
-	data[index*2+1] = pose.at<float>(1,0);
+	data[index * 3] = pose.at<float>(0, 0);
+	data[index * 3 + 1] = pose.at<float>(1, 0);
+	data[index * 3 + 2] = pose.at<float>(2, 0);
 }
 
 int main(int argc, char** argv) {
@@ -45,7 +47,7 @@ int main(int argc, char** argv) {
 
 	/********************Initialise all global variables.********************/
 	int noCams = 1;
-	int id = 1;
+	int id = 0;
 	TrackerHelper::Config config;
 	config.captureInfo = new TrackerHelper::CaptureInfo[noCams];
 	config.cameraInfo = new TrackerHelper::CameraInfo[noCams];
@@ -89,9 +91,6 @@ int main(int argc, char** argv) {
 
 	int count = 0;
 
-
-
-
 	bool first = true;
 	while (ros::ok()) {
 
@@ -108,14 +107,16 @@ int main(int argc, char** argv) {
 				config.captureInfo[0].width, config.captureInfo[0].height, 0); // Get transformation matrix from new result.
 
 		if (numDetected == 4) {
-			for (int i = 0; i< numDetected ; i++){
-				helper.getMarkerPose(helper.tracker, i, config.marker.marker_pose);
-				if (first){
+			for (int i = 0; i < numDetected; i++) {
+				helper.getMarkerPose(helper.tracker, i,
+						config.marker.marker_pose);
+				if (first) {
 					// Allocate the initial locations in data.
-					data[2*i] = config.marker.marker_pose.at<float>(0, 0);
-					data[2*i+1] = config.marker.marker_pose.at<float>(1, 0);
-					bin[i].x =config.marker.marker_pose.at<float>(0, 0);
-					bin[i].y =config.marker.marker_pose.at<float>(1, 0);
+					data[3 * i] = config.marker.marker_pose.at<float>(0, 0);
+					data[3 * i + 1] = config.marker.marker_pose.at<float>(1, 0);
+					data[3 * i + 2] = config.marker.marker_pose.at<float>(2, 0);
+					bin[i] = Mat::zeros(3, 1, CV_32FC1);
+					config.marker.marker_pose.rowRange(0, 3).copyTo(bin[i]);
 				} else {
 					// Cluster recent data into bin.
 					insertToBin(config.marker.marker_pose);
@@ -123,11 +124,10 @@ int main(int argc, char** argv) {
 			}
 			first = false;
 
-
-			fp << data[0] << "," << data[1] << ","
-					<< data[2] << "," << data[3] << ","
-					<< data[4] << "," << data[5] << ","
-					<< data[6] << "," << data[7] << "\n";
+			fp << data[0] << "," << data[1] << "," << data[2] << "," << data[3]
+					<< "," << data[4] << "," << data[5] << "," << data[6] << ","
+					<< data[7] << "," << data[8] << "," << data[9] << ","
+					<< data[10] << "," << data[11] << "\n";
 
 			count++;
 			cout << "Count: " << count << endl;

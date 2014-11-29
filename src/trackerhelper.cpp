@@ -7,6 +7,7 @@
 #include "trackerhelper.h"
 
 // The pose of the initial camera.
+int markerWidth = 126;
 
 void TrackerHelper::initialiseCapture(int id, VideoCapture &cap) {
 	// Write a function to open camera
@@ -50,7 +51,7 @@ int TrackerHelper::configTracker(int width, int height) {
 
 	// load a camera file.
 	if (!tracker->init(
-			"/home/parallels/catkin_ws/src/more_t2/data/cam1/all.cal",
+			"/home/parallels/catkin_ws/src/more_t2/data/cam0/all.cal",
 			"/home/parallels/tools/ARToolKitPlus-2.3.1/sample/data/markerboard_480-499.cfg",
 			1.0f, 1000.0f)) // load MATLAB file
 			{
@@ -89,7 +90,6 @@ void TrackerHelper::getRotMatrix(float roll, float yaw, float pitch, Mat &R) {
 void TrackerHelper::getMarkerPose(TrackerMultiMarker* tracker, int index, Mat &pose){
 	ARToolKitPlus::ARMarkerInfo markerInfo = tracker->getDetectedMarker(index);
 					ARFloat nOpenGLMatrix[16];
-					ARFloat markerWidth = 81;
 					ARFloat patternCentre[2] = { 0.0f, 0.0f };
 					tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth,
 							nOpenGLMatrix);
@@ -104,7 +104,6 @@ void TrackerHelper::calcMarkerPose(TrackerMultiMarker* tracker, Mat cam_pose,
 		Mat &marker_pose, Mat &T) {
 	ARToolKitPlus::ARMarkerInfo markerInfo = tracker->getDetectedMarker(0);
 	ARFloat nOpenGLMatrix[16];
-	ARFloat markerWidth = 102;
 	ARFloat patternCentre[2] = { 0.0f, 0.0f };
 	tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth,
 			nOpenGLMatrix);
@@ -204,7 +203,6 @@ void TrackerHelper::getCameraPose(TrackerMultiMarker* tracker,
 		Mat* marker_pose_t, Mat* cam_pose, Mat&T) {
 	ARToolKitPlus::ARMarkerInfo markerInfo = tracker->getDetectedMarker(0);
 	ARFloat nOpenGLMatrix[16];
-	ARFloat markerWidth = 102;
 	ARFloat patternCentre[2] = { 0.0f, 0.0f };
 	tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth,
 			nOpenGLMatrix);
