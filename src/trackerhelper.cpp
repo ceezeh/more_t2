@@ -8,7 +8,7 @@
 
 // The pose of the initial camera.
 
-int markerWidth = 102;
+int markerWidth = 126;
 void TrackerHelper::initialiseCapture(int id, VideoCapture &cap) {
 	// Write a function to open camera
 	// we will use an OpenCV capture
@@ -52,6 +52,37 @@ int TrackerHelper::configTracker(int width, int height) {
 	// load a camera file.
 	if (!tracker->init(
 			"/home/parallels/catkin_ws/src/more_t2/data/cam0/all.cal",
+			"/home/parallels/tools/ARToolKitPlus-2.3.1/sample/data/markerboard_480-499.cfg",
+			1.0f, 1000.0f)) // load MATLAB file
+			{
+		ROS_INFO("ERROR: init() failed\n");
+		exit(EXIT_FAILURE);
+	}
+
+	tracker->getCamera()->printSettings();
+
+	// the marker in the BCH test image has a thin border...
+	tracker->setBorderWidth(0.125);
+
+	// set a threshold. alternatively we could also activate automatic thresholding
+	tracker->setThreshold(160);
+
+	// let's use lookup-table undistortion for high-speed
+	// note: LUT only works with images up to 1024x1024
+	tracker->setUndistortionMode(ARToolKitPlus::UNDIST_LUT);
+
+	// switch to simple ID based markers
+	// use the tool in tools/IdPatGen to generate markers
+	tracker->setMarkerMode(ARToolKitPlus::MARKER_ID_SIMPLE);
+	return 0;
+}
+int TrackerHelper::configTracker(int width, int height, const char* cal) {
+	// write a function get camera frame size.
+	tracker = new TrackerMultiMarker(width, height, 8, 6, 6, 6, 0);
+	tracker->setPixelFormat(ARToolKitPlus::PIXEL_FORMAT_LUM);
+
+	// load a camera file.
+	if (!tracker->init(cal,
 			"/home/parallels/tools/ARToolKitPlus-2.3.1/sample/data/markerboard_480-499.cfg",
 			1.0f, 1000.0f)) // load MATLAB file
 			{
@@ -127,7 +158,7 @@ void TrackerHelper::getCameraT(TrackerMultiMarker* tracker, int index, Mat &Tc,
 // Todo The function produces inaccuracies in rotation.
 void TrackerHelper::calRotYXZ(float pitch, float yaw, float roll, Mat &R) {
 	// Todo: Notice the transformation.
-	float xd, zd;
+	double xd, zd;
 	// Careful recovery of direction from tan
 	if ((yaw >= 0) & (yaw < CV_PI / 2)) {
 		xd = abs(tan(yaw)); // xd is the sin part.
@@ -143,10 +174,10 @@ void TrackerHelper::calRotYXZ(float pitch, float yaw, float roll, Mat &R) {
 		zd = 1;
 	}
 
-	float yd = sin(pitch);
+	double yd = sin(pitch);
 
-	Mat Zm = (Mat_<float>(3, 1) << xd, yd, zd);
-	Mat X0 = (Mat_<float>(3, 1) << zd, 0, -xd);
+	Mat Zm = (Mat_<double>(3, 1) << xd, yd, zd);
+	Mat X0 = (Mat_<double>(3, 1) << zd, 0, -xd);
 	Mat Y0 = Zm.cross(X0);
 	Mat zm, ym, xm;
 	normalize(Zm, zm);
@@ -156,12 +187,23 @@ void TrackerHelper::calRotYXZ(float pitch, float yaw, float roll, Mat &R) {
 	normalize(Ym, ym);
 	xm = ym.cross(zm);
 //	cout << "norm xm" << norm(xm) << endl;
-	Mat R0x = R.col(0);
-	xm.copyTo(R0x);
-	Mat R1x = R.col(1);
-	ym.copyTo(R1x);
-	Mat R2x = R.col(2);
-	zm.copyTo(R2x);
+	R.at<float>(0, 0) = xm.at<double>(0, 0);
+	R.at<float>(1, 0) = xm.at<double>(1, 0);
+	R.at<float>(2, 0) = xm.at<double>(2, 0);
+
+	R.at<float>(0, 1) = ym.at<double>(0, 0);
+	R.at<float>(1, 1) = ym.at<double>(1, 0);
+	R.at<float>(2, 1) = ym.at<double>(2, 0);
+
+	R.at<float>(0, 2) = zm.at<double>(0, 0);
+	R.at<float>(1, 2) = zm.at<double>(1, 0);
+	R.at<float>(2, 2) = zm.at<double>(2, 0);
+//	Mat R0x = R.col(0);
+//	xm.copyTo(R0x);
+//	Mat R1x = R.col(1);
+//	ym.copyTo(R1x);
+//	Mat R2x = R.col(2);
+//	zm.copyTo(R2x);
 
 }
 void TrackerHelper::getAnglesYXZ(float &pitch, float &yaw, float &roll, Mat R) {
@@ -213,7 +255,7 @@ void TrackerHelper::calcMarkerPose(TrackerMultiMarker* tracker, Mat cam_pose,
 	Mat Rm2g_t = Mat(3, 3, CV_32FC1);
 	calRotYXZ(marker_pose.at<float>(3, 0), marker_pose.at<float>(4, 0),
 			marker_pose.at<float>(5, 0), Rm2g_t);
-	cout << "Start!" << endl << "Rm2g" << Rm2g << endl << "Rm2g_t" << Rm2g_t
+	cout << "Start!" << endl << "Rm2g Diff" << endl << Rm2g -Rm2g_t
 			<< endl << endl;
 
 	Mat cPose = (Mat_<float>(4, 1) << 0, 0, 0, 1);
@@ -429,7 +471,7 @@ void TrackerHelper::TransGraph::drawTrans(Mat trans, const char* id) {
 
 void TrackerHelper::RotGraph::initialiseDashBoard() {
 	rectangle(dashBoard, cvRect(0, 0, dSize, dSize), Scalar(255, 255, 255),
-			CV_FILLED);
+	CV_FILLED);
 //	circle(dashBoard, Point(dSize / 2, dSize / 2), 400, Scalar(255, 255, 255),
 //			CV_FILLED);
 	int step = 360 / 36;

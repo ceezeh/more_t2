@@ -97,6 +97,7 @@ public:
 	void initialiseCapture(int id, VideoCapture &cap);
 	void initFrameSize(VideoCapture &cap, int &width, int &height);
 	int configTracker( int width, int height);
+	int configTracker(int width, int height, const char* cal);
 	void getRotMatrix(float roll, float yaw, float pitch, Mat &R);
 	void calRotYXZ(float pitch, float yaw, float roll, Mat &R);
 	void getAnglesYXZ(float &roll, float &yaw, float &pitch, Mat R);

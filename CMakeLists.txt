@@ -197,3 +197,11 @@ add_dependencies(streamtest ${catkin_EXPORTED_TARGETS})
 add_executable(markerposetest src/markerposetest.cpp)
 target_link_libraries(markerposetest trackerhelper ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/local/lib/libARToolKitPlus.so)
 add_dependencies(markerposetest ${catkin_EXPORTED_TARGETS})
+
+add_executable(camTest0 src/camTest0.cpp)
+target_link_libraries(camTest0 trackerhelper ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/local/lib/libARToolKitPlus.so)
+add_dependencies(camTest0 ${catkin_EXPORTED_TARGETS})
+
+add_executable(camTest1 src/camTest1.cpp)
+target_link_libraries(camTest1 trackerhelper ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/local/lib/libARToolKitPlus.so)
+add_dependencies(camTest1 ${catkin_EXPORTED_TARGETS})

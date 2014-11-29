@@ -1,9 +1,10 @@
 /*
- * camTest0.cpp
+ * camTest1.cpp
  *
  *  Created on: Nov 29, 2014
  *      Author: parallels
  */
+
 #include "trackerhelper.h"
 #include <geometry_msgs/Pose.h>
 using namespace std;
@@ -12,7 +13,7 @@ using ARToolKitPlus::TrackerMultiMarker;
 
 TrackerHelper helper;
 
-int id = 0;
+int id = 1;
 ros::Publisher markerPose_pub;
 // The pose of the initial camera.
 Mat marker_pose;
@@ -41,7 +42,7 @@ void markerPoseCallback(const geometry_msgs::Pose & msg) {
 }
 
 int main(int argc, char** argv) {
-	ros::init(argc, argv, "cam0");
+	ros::init(argc, argv, "cam1");
 
 	ros::NodeHandle n("~");
 	ros::Rate loop_rate(10);
@@ -74,11 +75,9 @@ int main(int argc, char** argv) {
 			config.captureInfo[0].width, config.captureInfo[0].height);
 	config.captureInfo[0].newResult = false;
 
-	String calFile = "/home/parallels/catkin_ws/src/more_t2/data/cam0/all.cal";
+	String calFile = "/home/parallels/catkin_ws/src/more_t2/data/cam1/all.cal";
 	helper.configTracker(config.captureInfo[0].width,
 			config.captureInfo[0].height, calFile.c_str());
-
-	config.cameraInfo[0].cameraPoseKnown = true;
 
 	IplImage* img;
 	Mat temp;
@@ -87,9 +86,6 @@ int main(int argc, char** argv) {
 			temp.channels());
 	while (ros::ok()) {
 
-		while ((!newMarker)& !config.cameraInfo[0].cameraPoseKnown){
-		ros::spinOnce();
-		}
 
 		// Debug prints.
 		Mat temp;
@@ -114,6 +110,9 @@ int main(int argc, char** argv) {
 				}
 		}
 
+		while ((!newMarker)& !config.cameraInfo[0].cameraPoseKnown){
+			ros::spinOnce();
+			}
 
 		img->imageData = (char*) temp.data;
 
@@ -159,7 +158,8 @@ int main(int argc, char** argv) {
 								cout << "Camera Pose" << endl<<config.cameraInfo[0].camPose << endl;
 								helper.calcMarkerPose(helper.tracker, config.cameraInfo[0].camPose, config.marker.marker_pose,
 														config.marker.Tm);
-								cout << "Marker Pose:"<< endl << config.marker.marker_pose << endl;
+								cout << "Marker Pose from Cam:"<< endl << config.marker.marker_pose << endl;
+								cout << "Global Marker Pose :"<< endl << marker_pose << endl;
 			}
 		}
 		// Update pub sub
