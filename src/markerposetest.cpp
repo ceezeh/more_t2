@@ -18,11 +18,12 @@ float pastAveErr = 99999;
 float errRootSum = 0;
 float counter = 1;
 float sampleSize = 20;
-bool updatePitchGain(float &pastGain, float &pastAveErr, float &counter, float &pitchGain, Mat & actualMarkerPose, Mat & estimatedMarkerPose){
+bool updatePitchGain(float &pastGain, float &pastAveErr, float &counter,
+		float &pitchGain, Mat & actualMarkerPose, Mat & estimatedMarkerPose) {
 
 	if (counter == sampleSize) {
-		float currAveErr = errRootSum/counter;
-		errRootSum = norm(actualMarkerPose-estimatedMarkerPose);
+		float currAveErr = errRootSum / counter;
+		errRootSum = norm(actualMarkerPose - estimatedMarkerPose);
 		counter = 1;
 
 		if (pastAveErr > (currAveErr)) {
@@ -33,14 +34,12 @@ bool updatePitchGain(float &pastGain, float &pastAveErr, float &counter, float &
 			pitchGain = pastGain;
 			return false;
 		}
-	} else{
-		errRootSum += norm(actualMarkerPose-estimatedMarkerPose);
-		counter ++;
+	} else {
+		errRootSum += norm(actualMarkerPose - estimatedMarkerPose);
+		counter++;
 	}
 	return true;
 }
-
-
 
 int main(int argc, char** argv) {
 	ros::init(argc, argv, "cam1");
@@ -61,7 +60,7 @@ int main(int argc, char** argv) {
 	config.captureInfo = new TrackerHelper::CaptureInfo[noCams];
 	config.cameraInfo = new TrackerHelper::CameraInfo[noCams];
 	config.marker.marker_pose = Mat::zeros(6, 1, CV_32F);
-	Mat markerPose_t = Mat::zeros(6,1, CV_32FC1);
+	Mat markerPose_t = Mat::zeros(6, 1, CV_32FC1);
 	config.marker.Tm = Mat::eye(4, 4, CV_32F);
 	config.marker.mTime = -99999;
 	for (int i = 0; i < noCams; i++) {
@@ -75,7 +74,7 @@ int main(int argc, char** argv) {
 				config.captureInfo[i].width, config.captureInfo[i].height);
 		config.captureInfo[i].newResult = false;
 	}
-	helper.configTracker( config.captureInfo[0].width,
+	helper.configTracker(config.captureInfo[0].width,
 			config.captureInfo[0].height);
 
 	config.cameraInfo[0].cameraPoseKnown = true;
@@ -122,48 +121,55 @@ int main(int argc, char** argv) {
 				if (numDetected > 0) {
 					config.marker.mTime = frameTime;
 					cout << "Cam id: " << id << endl;
-					helper.calcMarkerPose(helper.tracker, config.cameraInfo[id].camPose, config.marker.marker_pose,
-															config.marker.Tm);
-					cout << "Marker Pose:"<< endl << config.marker.marker_pose << endl;
+					helper.calcMarkerPose(helper.tracker,
+							config.cameraInfo[id].camPose,
+							config.marker.marker_pose, config.marker.Tm);
+					cout << "Marker Pose:" << endl << config.marker.marker_pose
+							<< endl;
 				}
 			} else if ((numDetected > 0)
 					& ((frameTime - config.marker.mTime) < timeout)) {
-				cout << "cam,  id: " << id<< endl;
-				helper.getCameraPose(helper.tracker, &config.marker.marker_pose,&config.cameraInfo[id].camPose,
-						config.marker.Tm, pitchGain);
-				cout << "Camera Pose" << endl<<config.cameraInfo[id].camPose << endl;
-				helper.calcMarkerPose(helper.tracker, config.cameraInfo[id].camPose, markerPose_t,
-										config.marker.Tm);
-				cout << "Marker Pose:"<< endl << config.marker.marker_pose << endl;
-				cout << "Marker Pose_t:"<< endl << markerPose_t << endl;
-				if (!pitchStable){
-				bool result = updatePitchGain(pastGain, pastAveErr,counter,pitchGain, config.marker.marker_pose, markerPose_t);
-				if (!result) {
-					pitchStable = true;
-				}
+				cout << "cam,  id: " << id << endl;
+				helper.getCameraPose(helper.tracker, &config.marker.marker_pose,
+						&config.cameraInfo[id].camPose, config.marker.Tm,
+						pitchGain);
+				cout << "Camera Pose" << endl << config.cameraInfo[id].camPose
+						<< endl;
+				helper.calcMarkerPose(helper.tracker,
+						config.cameraInfo[id].camPose, markerPose_t,
+						config.marker.Tm);
+				cout << "Marker Pose:" << endl << config.marker.marker_pose
+						<< endl;
+				cout << "Marker Pose_t:" << endl << markerPose_t << endl;
+				if (!pitchStable) {
+					bool result = updatePitchGain(pastGain, pastAveErr, counter,
+							pitchGain, config.marker.marker_pose, markerPose_t);
+					if (!result) {
+						pitchStable = true;
+					}
 				}
 //				 put data in file.
 				bool invalidMarkerPose = false;
-								for (int i = 0; i < 6; i++) {
-									float test = config.cameraInfo[id].camPose.at<float>(i, 0);
-									if (test != test) {
-										invalidMarkerPose = true;
-									} else if (abs(test) > 1e4) {
-										invalidMarkerPose = true;
-									}
-								}
-								if ((!invalidMarkerPose)& pitchStable){
-				for (int i = 0; i < 6 ; i++) {
-						fp << config.cameraInfo[id].camPose.at<float>(i,0);
-						if (i==5){
-							 fp<<"\n";
-						}else{
-							fp <<",";
-						}
+				for (int i = 0; i < 6; i++) {
+					float test = config.cameraInfo[id].camPose.at<float>(i, 0);
+					if (test != test) {
+						invalidMarkerPose = true;
+					} else if (abs(test) > 1e4) {
+						invalidMarkerPose = true;
+					}
 				}
-				count++;
-				cout << "Count: " << count << endl;
-								}
+				if ((!invalidMarkerPose) & pitchStable) {
+					for (int i = 0; i < 6; i++) {
+						fp << config.cameraInfo[id].camPose.at<float>(i, 0);
+						if (i == 5) {
+							fp << "\n";
+						} else {
+							fp << ",";
+						}
+					}
+					count++;
+					cout << "Count: " << count << endl;
+				}
 			}
 
 			ros::spinOnce();
@@ -171,10 +177,11 @@ int main(int argc, char** argv) {
 			loop_rate.sleep();
 		}
 		if (count == 200) {
-			break;
+
 			fp.close();
 			config.captureInfo[0].capture.release();
 			config.captureInfo[1].capture.release();
+			break;
 		}
 	}
 }
