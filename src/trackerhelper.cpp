@@ -237,42 +237,29 @@ void TrackerHelper::calcMarkerPose(TrackerMultiMarker* tracker, Mat cam_pose,
 	Mat tmp = Mat(4, 4, CV_32FC1, (float *) nOpenGLMatrix);
 	tmp.copyTo(T);
 
-	// Calculate orientation.
-
 	// Construct a rotation matrix from global to camera frame.
 	// First construct rotation matrix from global to camera frame
 	Mat Rc2g;
 	Rc2g.create(3, 3, CV_32FC1);
 	calRotYXZ(cam_pose.at<float>(3, 0), cam_pose.at<float>(4, 0),
 			cam_pose.at<float>(5, 0), Rc2g);
-	Mat Rm2c = T.rowRange(0, 3).colRange(0, 3).t();
-	Mat Rm2g = Rc2g * Rm2c;
-	getAnglesYXZ(marker_pose.at<float>(3, 0), marker_pose.at<float>(4, 0),
-			marker_pose.at<float>(5, 0), Rm2g);
-//  marker.mTime = ros::Time::now();
 
-	// test rotation
-	Mat Rm2g_t = Mat(3, 3, CV_32FC1);
-	calRotYXZ(marker_pose.at<float>(3, 0), marker_pose.at<float>(4, 0),
-			marker_pose.at<float>(5, 0), Rm2g_t);
-	cout << "Start!" << endl << "Rm2g Diff" << endl << Rm2g -Rm2g_t
-			<< endl << endl;
-
-	Mat cPose = (Mat_<float>(4, 1) << 0, 0, 0, 1);
-	Mat marker_t = ((Mat) (T.t() * cPose));
 
 	Mat Trans_t;
 	Trans_t.create(3, 4, CV_32FC1);
 	hconcat(Rc2g, cam_pose.rowRange(0, 3), Trans_t);
-
-	Mat Trans;
-	Trans.create(4, 4, CV_32FC1);
+	Mat Tc2g;
+	 Tc2g.create(4, 4, CV_32FC1);
 	Mat off = (Mat_<float>(1, 4) << 0, 0, 0, 1);
-	vconcat(Trans_t, off, Trans);
-//	cout << "cam trans" << endl << cam_pose.rowRange(0, 3) << endl <<endl;
-//	cout <<"Start!"<<endl<<"Rc2g" << Rc2g <<endl<<"Rm2c"<<Rm2c<<endl << endl;
+	vconcat(Trans_t, off,  Tc2g);
+
+	Mat Tm2g = Tc2g * T.t();
+	Mat Rm2g = Tm2g.rowRange(0, 3).colRange(0, 3);
+
+	getAnglesYXZ(marker_pose.at<float>(3, 0), marker_pose.at<float>(4, 0),
+				marker_pose.at<float>(5, 0), Rm2g);
 	// Calculate Translation
-	Mat m = ((Mat) (Trans * marker_t)).rowRange(0, 3);
+	Mat m = Tm2g.col(3).rowRange(0,3);
 	Mat mTrans = marker_pose.rowRange(0, 3);
 	m.copyTo(mTrans);
 //	cout <<"markerpose: " << endl << marker_pose << endl << endl;
@@ -322,6 +309,7 @@ int TrackerHelper::getNumDetected(IplImage *img, TrackerMultiMarker *tracker,
 //
 }
 
+// Todo: Some thing in this code is causing a reduction 1/1.7 in the pitch angle.
 void TrackerHelper::getCameraPose(TrackerMultiMarker* tracker,
 		Mat* marker_pose_t, Mat* cam_pose, Mat&T) {
 	ARToolKitPlus::ARMarkerInfo markerInfo = tracker->getDetectedMarker(0);
@@ -332,33 +320,16 @@ void TrackerHelper::getCameraPose(TrackerMultiMarker* tracker,
 
 	Mat tmp = Mat(4, 4, CV_32FC1, (float *) nOpenGLMatrix);
 	tmp.copyTo(T);
-//  cout << "[Debug]: T' = " << endl << T.t() << endl << endl;
-	Mat Tc2m = ((Mat) (T.t().inv() * centreMat)).rowRange(0, 3);
-
-//  cout << "[Debug]: temp' = " << endl << temp << endl << endl;
-	Mat cam_trans = cam_pose->rowRange(0, 3);
-
-//  cout << "[Debug]: cam_trans' = " << endl << cam_trans << endl << endl;
-	// Calculate cam's orientation pose.
-
-//  cout << "[Debug]: Rc2m' = " << endl << Rc2m << endl << endl;
 	// Rg2m has to be reconstructed from marker orientation
-	Mat Rc2m = T.rowRange(0, 3).colRange(0, 3);
 	Mat Rm2g;
 	Rm2g.create(3, 3, CV_32FC1);
 	calRotYXZ(marker_pose_t->at<float>(3, 0), marker_pose_t->at<float>(4, 0),
 			marker_pose_t->at<float>(5, 0), Rm2g);
-	Mat Rc2g = Rm2g * Rc2m;
-	getAnglesYXZ(cam_pose->at<float>(3, 0), cam_pose->at<float>(4, 0),
-			cam_pose->at<float>(5, 0), Rc2g);
 
 	// Translation
 	// first get the camera's position in terms of the marker coordinates
 	// Reconstruct transformation matrix from world to marker
-	Mat mPose = (Mat_<float>(4, 1) << 0, 0, 0, 1);
-	Mat cam_t = ((Mat) (T.t().inv(CV_SVD) * mPose));
 	Mat off = (Mat_<float>(1, 4) << 0, 0, 0, 1);
-	//Calculate T inv
 
 	// Then transforms from the marker frame to the global frame.
 	// Frame reconstruct the transformation matrix
@@ -366,12 +337,66 @@ void TrackerHelper::getCameraPose(TrackerMultiMarker* tracker,
 	Mat Trans_t;
 	Trans_t.create(3, 4, CV_32FC1);
 	hconcat(Rm2g, marker_pose_t->rowRange(0, 3), Trans_t);
-	Mat Trans;
-	Trans.create(4, 4, CV_32FC1);
-	vconcat(Trans_t, off, Trans);
-	//  cout << "trans" << endl << Trans << endl << endl << "marker pose" << endl<< *marker_pose_t << endl<< endl<< "Rg2m" << endl << Rg2m<< endl << endl;
+	Mat Tm2g;
+	Tm2g.create(4, 4, CV_32FC1);
+	vconcat(Trans_t, off, Tm2g);
+//	  cout << "trans" << endl << Tm2g << endl << endl << "T" << endl<< T << endl<< endl<< "Rm2g" << endl << Rm2g<< endl << endl;
 
-	Mat cam = ((Mat) (Trans * cam_t)).rowRange(0, 3);
+	Mat Tc2g = Tm2g*T.t().inv();
+
+	Mat Rc2g = Tc2g.rowRange(0, 3).colRange(0, 3);
+	getAnglesYXZ(cam_pose->at<float>(3, 0), cam_pose->at<float>(4, 0),
+			cam_pose->at<float>(5, 0), Rc2g);
+cam_pose->at<float>(3, 0)*= 1.7;
+	cout << endl << "Tc2g" << endl << Tc2g << endl;
+	Mat cam = Tc2g.col(3).rowRange(0, 3);
+	Mat cam_trans = cam_pose->rowRange(0, 3);
+	cam.copyTo(cam_trans);
+//  cout << "[Debug] cam_pose'= " << endl << cam_pose << endl << endl;
+
+}
+
+void TrackerHelper::getCameraPose(TrackerMultiMarker* tracker,
+		Mat* marker_pose_t, Mat* cam_pose, Mat&T, float pitchGain) {
+	ARToolKitPlus::ARMarkerInfo markerInfo = tracker->getDetectedMarker(0);
+	ARFloat nOpenGLMatrix[16];
+	ARFloat patternCentre[2] = { 0.0f, 0.0f };
+	tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth,
+			nOpenGLMatrix);
+
+	Mat tmp = Mat(4, 4, CV_32FC1, (float *) nOpenGLMatrix);
+	tmp.copyTo(T);
+	// Rg2m has to be reconstructed from marker orientation
+	Mat Rm2g;
+	Rm2g.create(3, 3, CV_32FC1);
+	calRotYXZ(marker_pose_t->at<float>(3, 0), marker_pose_t->at<float>(4, 0),
+			marker_pose_t->at<float>(5, 0), Rm2g);
+
+	// Translation
+	// first get the camera's position in terms of the marker coordinates
+	// Reconstruct transformation matrix from world to marker
+	Mat off = (Mat_<float>(1, 4) << 0, 0, 0, 1);
+
+	// Then transforms from the marker frame to the global frame.
+	// Frame reconstruct the transformation matrix
+
+	Mat Trans_t;
+	Trans_t.create(3, 4, CV_32FC1);
+	hconcat(Rm2g, marker_pose_t->rowRange(0, 3), Trans_t);
+	Mat Tm2g;
+	Tm2g.create(4, 4, CV_32FC1);
+	vconcat(Trans_t, off, Tm2g);
+//	  cout << "trans" << endl << Tm2g << endl << endl << "T" << endl<< T << endl<< endl<< "Rm2g" << endl << Rm2g<< endl << endl;
+
+	Mat Tc2g = Tm2g*T.t().inv();
+
+	Mat Rc2g = Tc2g.rowRange(0, 3).colRange(0, 3);
+	getAnglesYXZ(cam_pose->at<float>(3, 0), cam_pose->at<float>(4, 0),
+			cam_pose->at<float>(5, 0), Rc2g);
+cam_pose->at<float>(3, 0)*= pitchGain;
+	cout << endl << "Tc2g" << endl << Tc2g << endl;
+	Mat cam = Tc2g.col(3).rowRange(0, 3);
+	Mat cam_trans = cam_pose->rowRange(0, 3);
 	cam.copyTo(cam_trans);
 //  cout << "[Debug] cam_pose'= " << endl << cam_pose << endl << endl;
 

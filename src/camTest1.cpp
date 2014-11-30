@@ -65,9 +65,11 @@ int main(int argc, char** argv) {
 	config.marker.Tm = Mat::eye(4, 4, CV_32FC1);
 	config.marker.mTime = -99999;
 
-	config.cameraInfo->camPose = Mat::zeros(6, 1, CV_32F);
+//	config.cameraInfo->camPose = Mat::zeros(6, 1, CV_32F);
+	config.cameraInfo->camPose = (Mat_<float>(6,1)<< -1540.81465000000,	658.600870000002,	73.3183415699997,	-0.106606081500000,	-0.0807963205000000,	-1.61029330000000);
+
 	config.cameraInfo->Tc = Mat::eye(4, 4, CV_32F);
-	config.cameraInfo->cameraPoseKnown = false;
+	config.cameraInfo->cameraPoseKnown = true;
 	helper.initialiseCapture(id, config.captureInfo[0].capture);
 	Mat frame;
 	config.captureInfo[0].capture.read(frame);
@@ -135,7 +137,7 @@ int main(int argc, char** argv) {
 
 			if (numDetected > 0){
 				config.marker.mTime = frameTime;
-				cout << "Cam id: " << id << endl;
+				cout << "Cam id: " << id << "Frame time: "<< frameTime << endl;
 				helper.calcMarkerPose(helper.tracker, config.cameraInfo[0].camPose, config.marker.marker_pose,
 														config.marker.Tm);
 				cout << "Marker Pose:"<< endl << config.marker.marker_pose << endl;

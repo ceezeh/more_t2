@@ -100,7 +100,7 @@ public:
 	int configTracker(int width, int height, const char* cal);
 	void getRotMatrix(float roll, float yaw, float pitch, Mat &R);
 	void calRotYXZ(float pitch, float yaw, float roll, Mat &R);
-	void getAnglesYXZ(float &roll, float &yaw, float &pitch, Mat R);
+	void getAnglesYXZ(float &pitch, float &yaw, float &roll, Mat R);
 	void calcMarkerPose(TrackerMultiMarker* tracker, Mat cam_pose,
 			Mat &marker_pose, Mat &T);
 	bool processMarkerImg(IplImage *img, TrackerMultiMarker *tracker, int width,
@@ -110,6 +110,8 @@ public:
 	void getMarkerPose(TrackerMultiMarker* tracker, int index, Mat &pose);
 	void getCameraPose(TrackerMultiMarker* tracker, Mat* marker_pose_t,
 			Mat* cam_pose, Mat&T);
+	void getCameraPose(TrackerMultiMarker* tracker, Mat* marker_pose_t,
+				Mat* cam_pose, Mat&T, float pitchGain);
 	void getCameraT(TrackerMultiMarker* tracker, int index, Mat &Tc, Mat Tm);
 	void getMarkerT(TrackerMultiMarker* tracker, int index, Mat &Tm, Mat Tc);
 	void writeCalibrationToFile(int id, Mat cam_pose);

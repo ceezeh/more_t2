@@ -136,7 +136,7 @@ int main(int argc, char** argv) {
 
 			if (numDetected > 0){
 				config.marker.mTime = frameTime;
-				cout << "Cam id: " << id << endl;
+				cout << "Cam id: " << id << "Frame time: "<< frameTime << endl;
 				helper.calcMarkerPose(helper.tracker, config.cameraInfo[0].camPose, config.marker.marker_pose,
 														config.marker.Tm);
 				cout << "Marker Pose:"<< endl << config.marker.marker_pose << endl;
