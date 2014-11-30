@@ -25,7 +25,6 @@ ros::Subscriber markerPose_sub;
 
 // Updates and publishes marker pose.
 
-
 void markerPoseCallback(const geometry_msgs::Pose & msg) {
 	if ((frameTime - msg.orientation.w) < timeout) {
 		marker_pose.at<float>(0, 0) = msg.position.x;
@@ -52,7 +51,6 @@ int main(int argc, char** argv) {
 	Mat T;
 	T.create(4, 4, CV_32FC1);
 	marker_pose.create(3, 1, CV_32FC1);
-
 
 	// Initialise all global variables.
 
@@ -85,10 +83,20 @@ int main(int argc, char** argv) {
 	config.captureInfo[0].capture.read(temp);
 	img = cvCreateImage(cvSize(temp.cols, temp.rows), IPL_DEPTH_8U,
 			temp.channels());
+
+	string path =
+			"/home/parallels/catkin_ws/src/more_t2/posedata/pose_cam_0.csv";
+	ofstream fp;
+	fp.open(path.c_str(), ios::out | ios::trunc);
+	if (!fp.is_open()) {
+		cout << "Error! Cannot open file to save pose data" << endl;
+		exit(EXIT_FAILURE);
+	}
+
 	while (ros::ok()) {
 
-		while ((!newMarker)& !config.cameraInfo[0].cameraPoseKnown){
-		ros::spinOnce();
+		while ((!newMarker) & !config.cameraInfo[0].cameraPoseKnown) {
+			ros::spinOnce();
 		}
 
 		// Debug prints.
@@ -97,31 +105,27 @@ int main(int argc, char** argv) {
 		config.captureInfo[0].capture.read(temp);
 		config.captureInfo[0].capture.read(temp);
 		config.captureInfo[0].capture.read(temp);
-		frameTime = config.captureInfo[0].capture.get(
-							CV_CAP_PROP_POS_MSEC);
+		frameTime = config.captureInfo[0].capture.get(CV_CAP_PROP_POS_MSEC);
 		if (temp.empty()) {
-						ROS_INFO("ERROR: files to grab new image\n");
-						exit(EXIT_FAILURE);
-					}
-
-		while ((newMarkerTime - frameTime) > timeout){
-			config.captureInfo[0].capture.read(temp);
-			frameTime = config.captureInfo[0].capture.get(
-					CV_CAP_PROP_POS_MSEC);
-			if (temp.empty()) {
-					ROS_INFO("ERROR: files to grab new image\n");
-					exit(EXIT_FAILURE);
-				}
+			ROS_INFO("ERROR: files to grab new image\n");
+			exit(EXIT_FAILURE);
 		}
 
+		while ((newMarkerTime - frameTime) > timeout) {
+			config.captureInfo[0].capture.read(temp);
+			frameTime = config.captureInfo[0].capture.get(CV_CAP_PROP_POS_MSEC);
+			if (temp.empty()) {
+				ROS_INFO("ERROR: files to grab new image\n");
+				exit(EXIT_FAILURE);
+			}
+		}
 
 		img->imageData = (char*) temp.data;
 
 		int numDetected = helper.getNumDetected(img, helper.tracker,
-				config.captureInfo[0].width, config.captureInfo[0].height,
-				id); // Get transformation matrix from new result.
+				config.captureInfo[0].width, config.captureInfo[0].height, id); // Get transformation matrix from new result.
 
-		if (config.cameraInfo[0].cameraPoseKnown ) {
+		if (config.cameraInfo[0].cameraPoseKnown) {
 			// Update PubSub
 			// Shutdown subcriber if still on and start publisher if not started
 			if (pubsubToggled == false) {
@@ -134,32 +138,55 @@ int main(int argc, char** argv) {
 			// If camera's position is known then start publishing marker position
 			// publish marker pose.
 
-			if (numDetected > 0){
+			if (numDetected > 0) {
 				config.marker.mTime = frameTime;
-				cout << "Cam id: " << id << "Frame time: "<< frameTime << endl;
-				helper.calcMarkerPose(helper.tracker, config.cameraInfo[0].camPose, config.marker.marker_pose,
-														config.marker.Tm);
-				cout << "Marker Pose:"<< endl << config.marker.marker_pose << endl;
+				cout << "Cam id: " << id << "Frame time: " << frameTime << endl;
+				helper.calcMarkerPose(helper.tracker,
+						config.cameraInfo[0].camPose, config.marker.marker_pose,
+						config.marker.Tm);
+				cout << "Marker Pose:" << endl << config.marker.marker_pose
+						<< endl;
 				//Publish results
 				geometry_msgs::Pose pose;
-					pose.position.x = config.marker.marker_pose.at<float>(0, 0);
-					pose.position.y = config.marker.marker_pose.at<float>(0, 1);
-					pose.position.z = config.marker.marker_pose.at<float>(0, 2);
-					pose.orientation.x = config.marker.marker_pose.at<float>(0, 3);
-					pose.orientation.y = config.marker.marker_pose.at<float>(0, 4);
-					pose.orientation.z = config.marker.marker_pose.at<float>(0, 5);
-					pose.orientation.w = frameTime; // Z stores marker time.
-					markerPose_pub.publish(pose);
+				pose.position.x = config.marker.marker_pose.at<float>(0, 0);
+				pose.position.y = config.marker.marker_pose.at<float>(0, 1);
+				pose.position.z = config.marker.marker_pose.at<float>(0, 2);
+				pose.orientation.x = config.marker.marker_pose.at<float>(0, 3);
+				pose.orientation.y = config.marker.marker_pose.at<float>(0, 4);
+				pose.orientation.z = config.marker.marker_pose.at<float>(0, 5);
+				pose.orientation.w = frameTime; // Z stores marker time.
+				markerPose_pub.publish(pose);
+
+				// Save marker to file.
+				bool invalidMarkerPose = false;
+				for (int i = 0; i < 6; i++) {
+					float test = config.marker.marker_pose.at<float>(i, 0);
+					if (test != test) {
+						invalidMarkerPose = true;
+					} else if (abs(test) > 1e4) {
+						invalidMarkerPose = true;
+					}
+				}
+				if (!invalidMarkerPose) {
+					for (int i = 0; i < 6; i++) {
+						fp << config.marker.marker_pose.at<float>(i, 0) << ",";
+
+					}
+					fp << frameTime << "\n";
+				}
 			}
 		} else { // Derive Camera's position from marker image.
 			if (numDetected) {
-				cout << "cam,  id: " << id<< endl;
-								helper.getCameraPose(helper.tracker, &marker_pose,&config.cameraInfo[0].camPose,
-										config.marker.Tm);
-								cout << "Camera Pose" << endl<<config.cameraInfo[0].camPose << endl;
-								helper.calcMarkerPose(helper.tracker, config.cameraInfo[0].camPose, config.marker.marker_pose,
-														config.marker.Tm);
-								cout << "Marker Pose:"<< endl << config.marker.marker_pose << endl;
+				cout << "cam,  id: " << id << endl;
+				helper.getCameraPose(helper.tracker, &marker_pose,
+						&config.cameraInfo[0].camPose, config.marker.Tm);
+				cout << "Camera Pose" << endl << config.cameraInfo[0].camPose
+						<< endl;
+				helper.calcMarkerPose(helper.tracker,
+						config.cameraInfo[0].camPose, config.marker.marker_pose,
+						config.marker.Tm);
+				cout << "Marker Pose:" << endl << config.marker.marker_pose
+						<< endl;
 			}
 		}
 		// Update pub sub
@@ -169,8 +196,8 @@ int main(int argc, char** argv) {
 
 		// If camera's pose is not known then we need to check for new marker positions.
 
-
-
 		loop_rate.sleep();
 	}
+	fp.close();
+	config.captureInfo[0].capture.release();
 }

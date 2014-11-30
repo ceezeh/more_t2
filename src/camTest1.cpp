@@ -30,7 +30,7 @@ float pitchGain = 1.5;
 float pastAveErr = 99999;
 float errRootSum = 0;
 float counter = 1;
-float sampleSize = 50;
+float sampleSize = 20;
 bool updatePitchGain(float &pastGain, float &pastAveErr, float &counter,
 		float &pitchGain, Mat & actualMarkerPose, Mat & estimatedMarkerPose) {
 
@@ -92,11 +92,12 @@ int main(int argc, char** argv) {
 	config.marker.Tm = Mat::eye(4, 4, CV_32FC1);
 	config.marker.mTime = -99999;
 
-//	config.cameraInfo->camPose = Mat::zeros(6, 1, CV_32F);
-	config.cameraInfo->camPose = (Mat_<float>(6,1)<<  -593.5099, 570.1895,  31.9803 ,  -0.1742,    0.0978,   -1.5936);
+//  config.cameraInfo->camPose = Mat::zeros(6, 1, CV_32F);
+	config.cameraInfo->camPose =
+			(Mat_<float>(6, 1) << 425.7555,  753.2359, -108.5823 ,  -0.4357 ,  -0.5133 ,  -0.1151);
 
 	config.cameraInfo->Tc = Mat::eye(4, 4, CV_32F);
-	config.cameraInfo->cameraPoseKnown = false;
+	config.cameraInfo->cameraPoseKnown = true;
 	helper.initialiseCapture(id, config.captureInfo[0].capture);
 	Mat frame;
 	config.captureInfo[0].capture.read(frame);
@@ -114,14 +115,19 @@ int main(int argc, char** argv) {
 	img = cvCreateImage(cvSize(temp.cols, temp.rows), IPL_DEPTH_8U,
 			temp.channels());
 
-	string path = "/home/parallels/catkin_ws/src/more_t2/posedata/cam.csv";
-		ofstream fp;
-		fp.open(path.c_str(), ios::out | ios::trunc);
-		if (!fp.is_open()) {
-			cout << "Error! Cannot open file to save pose data" << endl;
-			exit(EXIT_FAILURE);
-		}
-		int count = 0;
+	string path;
+	if (config.cameraInfo->cameraPoseKnown) {
+		path = "/home/parallels/catkin_ws/src/more_t2/posedata/pose_cam_1.csv";
+	} else {
+		path = "/home/parallels/catkin_ws/src/more_t2/posedata/cam.csv";
+	}
+	ofstream fp;
+	fp.open(path.c_str(), ios::out | ios::trunc);
+	if (!fp.is_open()) {
+		cout << "Error! Cannot open file to save pose data" << endl;
+		exit(EXIT_FAILURE);
+	}
+	int count = 0;
 
 	while (ros::ok()) {
 
@@ -186,6 +192,24 @@ int main(int argc, char** argv) {
 				pose.orientation.z = config.marker.marker_pose.at<float>(0, 5);
 				pose.orientation.w = frameTime; // Z stores marker time.
 				markerPose_pub.publish(pose);
+
+				//store marker in file
+				bool invalidMarkerPose = false;
+				for (int i = 0; i < 6; i++) {
+					float test = config.marker.marker_pose.at<float>(i, 0);
+					if (test != test) {
+						invalidMarkerPose = true;
+					} else if (abs(test) > 1e4) {
+						invalidMarkerPose = true;
+					}
+				}
+				if (!invalidMarkerPose) {
+					for (int i = 0; i < 6; i++) {
+						fp << config.marker.marker_pose.at<float>(i, 0) << ",";
+
+					}
+					fp << frameTime << "\n";
+				}
 			}
 		} else { // Derive Camera's position from marker image.
 			if (numDetected) {
@@ -239,11 +263,13 @@ int main(int argc, char** argv) {
 		// To do this, first tracker marker and report its position.
 
 		// If camera's pose is not known then we need to check for new marker positions.
-		if (count == 200) {
-					fp.close();
-					config.captureInfo[0].capture.release();
-					break;
-				}
+		if (!config.cameraInfo->cameraPoseKnown & (count == 200)) {
+			fp.close();
+			config.captureInfo[0].capture.release();
+			break;
+		}
 		loop_rate.sleep();
 	}
+	fp.close();
+	config.captureInfo[0].capture.release();
 }
