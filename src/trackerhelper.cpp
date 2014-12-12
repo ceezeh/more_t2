@@ -9,6 +9,7 @@
 // The pose of the initial camera.
 
 int markerWidth = 126;
+int minArea = 9999;
 void TrackerHelper::initialiseCapture(int id, VideoCapture &cap) {
 	// Write a function to open camera
 	// we will use an OpenCV capture
@@ -230,6 +231,10 @@ void TrackerHelper::getAnglesYXZ(float &pitch, float &yaw, float &roll, Mat R) {
 void TrackerHelper::calcMarkerPose(TrackerMultiMarker* tracker, Mat cam_pose,
 		Mat &marker_pose, Mat &T) {
 	ARToolKitPlus::ARMarkerInfo markerInfo = tracker->getDetectedMarker(0);
+	if (markerInfo.area < minArea) {
+		minArea = markerInfo.area;
+	}
+	cout << "Marker Pixels: " << minArea << endl;
 	ARFloat nOpenGLMatrix[16];
 	ARFloat patternCentre[2] = { 0.0f, 0.0f };
 	tracker->calcOpenGLMatrixFromMarker(&markerInfo, patternCentre, markerWidth,

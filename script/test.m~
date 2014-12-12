@@ -1,4 +1,4 @@
-P0 = csvread('/home/parallels/catkin_ws/src/more_t2/posedata/pose_cam_0.csv');
+P0 = csvread('/home/parallels/catkin_ws/src/more_t2/posedata/pose_cam_1.csv');
 
 
 	xd = zeros(size(P0(:,5)));
@@ -49,18 +49,14 @@ for i = 1:size(Y0,1)
     ym(i,:) = Ym(i,:)/norm(Ym(i,:));
 end
 
-% quiver3(P0(:,1), P0(:,2), P0(:,3), zm(:,1), zm(:,2), zm(:,3));
-% hold on
-% quiver3(P0(:,1), P0(:,2), P0(:,3), ym(:,1), ym(:,2), ym(:,3));
-% 	xm = cross(ym,zm);
-%     quiver3(P0(:,1), P0(:,2), P0(:,3), xm(:,1), xm(:,2), xm(:,3))
+
 
 %x-axis
 quiver3(P0(1:10:end,1), P0(1:10:end,2), P0(1:10:end,3), zm(1:10:end,1), zm(1:10:end,2), zm(1:10:end,3));
 hold on
 quiver3(P0(1:10:end,1), P0(1:10:end,2), P0(1:10:end,3), ym(1:10:end,1), ym(1:10:end,2), ym(1:10:end,3));
 	xm = cross(ym,zm);
-    quiver3(P0(1:10:end,1), P0(1:10:end,2), P0(1:10:end,3), xm(1:10:end,1), xm(1:10:end,2), xm(1:10:end,3))
+    quiver3(P0(1:10:end,1), P0(1:10:end,2), P0(1:10:end,3), xm(:,1), xm(:,2), xm(:,3))
 xlabel('x')
 ylabel('y')
 zlabel('z')

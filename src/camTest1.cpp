@@ -25,12 +25,13 @@ int timeout = 100;
 ros::Subscriber markerPose_sub;
 
 // Updates and publishes marker pose.
-float pastGain = 1.5;
-float pitchGain = 1.5;
+
+float pitchGain = 0.9;
+float pastGain = pitchGain;
 float pastAveErr = 99999;
 float errRootSum = 0;
 float counter = 1;
-float sampleSize = 20;
+float sampleSize = 40;
 bool updatePitchGain(float &pastGain, float &pastAveErr, float &counter,
 		float &pitchGain, Mat & actualMarkerPose, Mat & estimatedMarkerPose) {
 
@@ -42,7 +43,7 @@ bool updatePitchGain(float &pastGain, float &pastAveErr, float &counter,
 		if (pastAveErr > (currAveErr)) {
 			pastGain = pitchGain;
 			pastAveErr = currAveErr;
-			pitchGain *= .94;
+			pitchGain += abs(pitchGain)*.1;
 		} else {
 			pitchGain = pastGain;
 			return false;
@@ -53,7 +54,18 @@ bool updatePitchGain(float &pastGain, float &pastAveErr, float &counter,
 	}
 	return true;
 }
+bool isInvalidPose(Mat &pose) {
+	for (int i = 0; i < 6; i++) {
+		float test = pose.at<float>(i, 0);
+		if (test != test) {
+			return true;
+		} else if (abs(test) > 1e9) {
+			return true;
+		}
+	}
+	return false;
 
+}
 void markerPoseCallback(const geometry_msgs::Pose & msg) {
 	if ((frameTime - msg.orientation.w) < timeout) {
 		marker_pose.at<float>(0, 0) = msg.position.x;
@@ -93,8 +105,7 @@ int main(int argc, char** argv) {
 	config.marker.mTime = -99999;
 
 //  config.cameraInfo->camPose = Mat::zeros(6, 1, CV_32F);
-	config.cameraInfo->camPose =
-			(Mat_<float>(6, 1) << 425.7555,  753.2359, -108.5823 ,  -0.4357 ,  -0.5133 ,  -0.1151);
+	config.cameraInfo->camPose =(Mat_<float>(6, 1) << 	-1295.29197674419,	-30.1675683662791,	398.303308139535,	-0.363636244186046	,0.0483828476744186,	0.104771943604651);
 
 	config.cameraInfo->Tc = Mat::eye(4, 4, CV_32F);
 	config.cameraInfo->cameraPoseKnown = true;
@@ -219,6 +230,7 @@ int main(int argc, char** argv) {
 						pitchGain);
 				cout << "Camera Pose" << endl << config.cameraInfo[0].camPose
 						<< endl;
+
 				helper.calcMarkerPose(helper.tracker,
 						config.cameraInfo[0].camPose, config.marker.marker_pose,
 						config.marker.Tm);
@@ -226,20 +238,21 @@ int main(int argc, char** argv) {
 				cout << "Estimated Marker Pose:" << endl
 						<< config.marker.marker_pose << endl;
 
-				if (!pitchStable) {
+				if (!pitchStable & !isInvalidPose(config.cameraInfo[0].camPose)
+						& !isInvalidPose(config.marker.marker_pose)) {
 					bool result = updatePitchGain(pastGain, pastAveErr, counter,
 							pitchGain, marker_pose, config.marker.marker_pose);
 					if (!result) {
 						pitchStable = true;
 					}
 				}
-
+				cout << "Pitch Gain " << pitchGain << endl;
 				bool invalidMarkerPose = false;
 				for (int i = 0; i < 6; i++) {
 					float test = config.cameraInfo[0].camPose.at<float>(i, 0);
 					if (test != test) {
 						invalidMarkerPose = true;
-					} else if (abs(test) > 1e4) {
+					} else if (abs(test) > 1e9) {
 						invalidMarkerPose = true;
 					}
 				}

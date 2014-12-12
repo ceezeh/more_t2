@@ -10,7 +10,6 @@ currTime = 0;
 index =1;
 data = [];
 while 1
-    
     if (P0(ptr0, 7) < P1(ptr1, 7))
         ptr0 = ptr0 + 1;
         if ptr0 > size(P0,1)
@@ -24,7 +23,13 @@ while 1
     else
         data = vertcat(data, P0(ptr0, 1:6)-P1(ptr1, 1:6));
         ptr0 = ptr0 + 1;
-         ptr1 = ptr1 + 1;
+        ptr1 = ptr1 + 1;
+        if ptr0 > size(P0,1)
+            break;
+        end
+        if ptr1 > size(P1,1)
+            break;
+        end
     end
     
 end
