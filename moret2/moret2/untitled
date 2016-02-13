@@ -1,0 +1,11 @@
+class MoreT2(tk.Frame):
+
+	def __init__(self, parent, *args, **kwargs):
+		tk.Frame.__init__(self, parent, *args, **kwargs)
+		self.win = parent
+
+
+if __name__ == "__main__":
+	root = tk.Tk()
+	MoreT2(root)
+	root.mainloop()

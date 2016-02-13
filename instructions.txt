@@ -1,0 +1,24 @@
+MoRe-T2 dependencies: (Time stamp not working on linux yet)
+***************************************
+chmod u+x install_opencv_deps.sh
+./install_opencv_deps.sh
+install opencv2.4.11 : http://sourceforge.net/projects/opencvlibrary/files/
+build ArtoolkitPlus:
+cd into Artoolkitplus
+mkdir build&&cd build
+cmake ../
+make 
+build more-t2
+add control to include *.so or *.dylib for either mac or linux
+Install tkinter: sudo apt-get install python-tk -y
+install pip using get-pip.py script
+install pillow: sudo pip install pillow
+install enum: cd dir && sudo python setup.py install
+set permissions chmod u+x *
+Build live555:
+upgrade gcc to 4.7.0 at least.
+sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+sudo apt-get update
+sudo apt-get install gcc-4.7
+extract either live_macosx or live_linux into live folder and make
+Get ffmpeg: sudo apt-get install libav-tools
