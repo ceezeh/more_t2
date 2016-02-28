@@ -1,0 +1,56 @@
+ant:
+<ant>
+  <mkdir dir="/Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution" />
+  <mkdir dir="/Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_testing" />
+  <mkdir dir="/Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution_files_only" />
+</ant>
+mcc -o undistortimages -W main:undistortimages -T link:exe -d '/Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_testing' -v '/Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/Jrate/undistortimages.m' 
+Name is nonexistent or not a directory: /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution/MyAppInstaller_web.app
+Name is nonexistent or not a directory: /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution/MyAppInstaller_web.app/Contents
+Name is nonexistent or not a directory: /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution/MyAppInstaller_web.app/Contents/MacOS
+Name is nonexistent or not a directory: /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution/MyAppInstaller_web.app/Contents/MacOS/setup.dSYM
+Name is nonexistent or not a directory: /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution/MyAppInstaller_web.app/Contents/MacOS/setup.dSYM/Contents
+Name is nonexistent or not a directory: /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution/MyAppInstaller_web.app/Contents/MacOS/setup.dSYM/Contents/Resources
+Name is nonexistent or not a directory: /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution/MyAppInstaller_web.app/Contents/MacOS/setup.dSYM/Contents/Resources/DWARF
+Name is nonexistent or not a directory: /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution/MyAppInstaller_web.app/Contents/Resources
+Name is nonexistent or not a directory: /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution/MyAppInstaller_web.app/Contents/Resources/en.lproj
+Name is nonexistent or not a directory: /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution_files_only/undistortimages.app
+Name is nonexistent or not a directory: /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution_files_only/undistortimages.app/Contents
+Name is nonexistent or not a directory: /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution_files_only/undistortimages.app/Contents/MacOS
+Name is nonexistent or not a directory: /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution_files_only/undistortimages.app/Contents/Resources
+Name is nonexistent or not a directory: /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution_files_only/undistortimages.app/Contents/Resources/Base.lproj
+Name is nonexistent or not a directory: /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_testing/undistortimages.app
+Name is nonexistent or not a directory: /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_testing/undistortimages.app/Contents
+Name is nonexistent or not a directory: /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_testing/undistortimages.app/Contents/MacOS
+Name is nonexistent or not a directory: /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_testing/undistortimages.app/Contents/Resources
+Name is nonexistent or not a directory: /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_testing/undistortimages.app/Contents/Resources/Base.lproj
+Compiler version: 6.0 (R2015a)
+Dependency analysis by REQUIREMENTS.
+[Warning: Adding path "/Users/ceezeh/Google Drive/PhD/Main/Mini
+Projects/More_T2/workspace/matlab/Jrate" to Compiler path instance.] 
+Parsing file "/Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/Jrate/undistortimages.m"
+	(Referenced from: "Compiler Command Line").
+Deleting 11 temporary MEX authorization files.
+Removing: '/tmp/00dc2KhmEwt_3522.auth'.
+Removing: '/tmp/00dc2Znc7tO_3522.auth'.
+Removing: '/tmp/00dc21uljmo_3522.auth'.
+Removing: '/tmp/00dc2oXiBjt_3522.auth'.
+Removing: '/tmp/00dc2izaUsi_3522.auth'.
+Removing: '/tmp/00dc20MtKd3_3522.auth'.
+Removing: '/tmp/00dc2BvzsGC_3522.auth'.
+Removing: '/tmp/00dc26pqzJ8_3522.auth'.
+Removing: '/tmp/00dc2hQ5xgu_3522.auth'.
+Removing: '/tmp/00dc2O3gzWD_3522.auth'.
+Removing: '/tmp/00dc2H1BEiv_3522.auth'.
+Generating file "/Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_testing/readme.txt".
+Generating file "/Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_testing/run_undistortimages.sh".
+Packaging...
+Adding custom icon /Applications/MATLAB_R2015a.app/toolbox/compiler/Resources/default_icon.icns to /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_testing/undistortimages.app.
+Creating the bundle...
+Copying /Applications/MATLAB_R2015a.app/toolbox/compiler/maci64/setup.app to /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution/MyAppInstaller_web.app.
+Copying /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution/bundle.zip to /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution/MyAppInstaller_web.app/Contents/Resources/bundle.zip.
+Copying /Applications/MATLAB_R2015a.app/toolbox/compiler/Resources/default_splash.png to /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution/MyAppInstaller_web.app/Contents/Resources/splash.png.
+Copying /Applications/MATLAB_R2015a.app/toolbox/compiler/Resources/default_icon.icns to /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution/MyAppInstaller_web.app/Contents/Resources/installer.icns.
+Web based installer created at /Users/ceezeh/Google Drive/PhD/Main/Mini Projects/More_T2/workspace/matlab/undistortimages/for_redistribution/MyAppInstaller_web.app.
+Packaging complete.
+Elapsed packaging time was: 5 minutes and 49 seconds.

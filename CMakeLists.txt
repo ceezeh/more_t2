@@ -10,9 +10,9 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin)
 
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/../..//Release/moret2/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/../../Release/moret2/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/../../Release/moret2/bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/../moret2/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/../moret2/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/../moret2/bin)
 
 SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -DUSE_GIGE -std=c++11 ")
 SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -Wl" )
@@ -90,7 +90,7 @@ IF(UNIX)
 include_directories( include ${OpenCV_INCLUDE_DIRS} ${CMAKE_BINARY_DIR}/../moret2/packages/ARToolKitPlus-2.2.1/include ${GSL_INCLUDE_DIRS} ${GSLCBLAS_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS}  ${OPENGL_INCLUDE_DIRS}  ${GLUT_INCLUDE_DIRS})
 
 add_library(trackerhelper src/trackerhelper.cpp )
-target_link_libraries(trackerhelper ${catkin_LIBRARIES} ${OpenCV_LIBRARIES}  ${CMAKE_BINARY_DIR}/../moret2/packages/ARToolKitPlus-2.2.1/lib/libARToolKitPlus.dylib  ${GSL_LIBRARIES} ${GSLCBLAS_LIBRARIES} ${OPENGL_LIBRARIES} ${GLUT_LIBRARY})
+target_link_libraries(trackerhelper ${catkin_LIBRARIES} ${OpenCV_LIBRARIES}  ${CMAKE_BINARY_DIR}/../moret2/packages/ARToolKitPlus-2.2.1/build/lib/libARToolKitPlus.a  ${GSL_LIBRARIES} ${GSLCBLAS_LIBRARIES} ${OPENGL_LIBRARIES} ${GLUT_LIBRARY})
 
 
 add_executable(adjustCamPose src/adjustCamPose.cpp)
@@ -115,4 +115,4 @@ target_link_libraries(triggergen trackerhelper )
 
 
 add_custom_command(TARGET triggergen POST_BUILD
-					COMMAND $(CMAKE_COMMAND) -E copy ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}/triggergen ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}/extra/)
+					COMMAND $(CMAKE_COMMAND) -E copy ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}/triggergen ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}/extra)

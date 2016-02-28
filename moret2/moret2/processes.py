@@ -108,7 +108,7 @@ class Calibration(object):
 			else:
 				self.calib[child.tag] = float(child.attrib['value'])
 	def writeToARFile(self, filename):
-		target = open(filename,'w')
+		target = open(filename,'w+')
 		target.write('ARToolKitPlus_CamCal_Rev02\n')
 		cal = " ".join([str(self.calib[tag]) for tag in self.alltags])
 		cal += " 0.0 0.0 0 20"
@@ -249,6 +249,24 @@ class ProcessWorker(object):
 				proc = subprocess.Popen(cmd, universal_newlines=True, shell=True, executable="/bin/bash", stdin=subprocess.PIPE,preexec_fn=os.setsid)
 				self.procList.append(proc)
 			exit_codes = [p.wait() for p in self.procList]
+			if self.endFlag:
+				break
+
+			#New!! Undistort using matlab function
+			for cam in self.selectedCams:
+				cmd = pipes.quote(os.path.dirname(os.path.realpath(__file__)) + "/../source/undistort.sh")
+				vidpath1=jobpath + "/" + cam + "/vid_old.mov"
+				vidpath2=jobpath + "/" + cam + "/vid.mov"
+				if os.path.exists(vidpath1 ) and os.path.exists(vidpath2 ):
+					pass
+				else:
+					arg = jobpath + "/" + cam 
+					arg = pipes.quote(arg)
+					cmd += " " +arg
+					print cmd
+					proc = subprocess.Popen(cmd, universal_newlines=True, shell=True, executable="/bin/bash", stdin=subprocess.PIPE,preexec_fn=os.setsid)
+					self.procList.append(proc)
+				exit_codes = [p.wait() for p in self.procList]
 			if self.endFlag:
 				break
 			#Create *.cal file.
