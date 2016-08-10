@@ -6,13 +6,7 @@ find_package(OpenCV REQUIRED core imgproc highgui)
 find_package(OpenGL)
 find_package(GLUT)
 
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin)
-
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/../moret2/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/../moret2/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/../moret2/bin)
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wall")
 
 SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -DUSE_GIGE -std=c++11 ")
 SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -Wl" )
@@ -113,6 +107,6 @@ target_link_libraries(markerDetect trackerhelper )
 add_executable(triggergen src/extra/triggergen.cpp)
 target_link_libraries(triggergen trackerhelper )
 
-
-add_custom_command(TARGET triggergen POST_BUILD
-					COMMAND $(CMAKE_COMMAND) -E copy ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}/triggergen ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}/extra)
+install (TARGETS adjustCamPose genpose gencampose markerDetect triggergen DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/../moret2/bin)
+install (TARGETS trackerhelper DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/../moret2/lib)
+install (TARGETS triggergen DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/../moret2/bin/extra)

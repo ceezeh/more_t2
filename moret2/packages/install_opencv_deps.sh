@@ -22,6 +22,7 @@
 
     sudo apt-get -y install python-dev python-numpy &&
  
+ sudo apt-get install freeglut3-dev -y
 #Optional - install the parallel code processing library (the Intel tbb library)
 
     sudo apt-get -y install libtbb-dev &&

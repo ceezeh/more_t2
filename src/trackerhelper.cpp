@@ -57,6 +57,7 @@ int TrackerHelper::configTracker(int width, int height, const char* cal, const c
 
 	// set a threshold. alternatively we could also activate automatic thresholding
 	tracker->setThreshold(120);
+	 // tracker->activateAutoThreshold(true);
 
 	// let's use lookup-table undistortion for high-speed
 	// note: LUT only works with images up to 1024x1024
@@ -306,7 +307,7 @@ int TrackerHelper::getNumDetected(IplImage *img, TrackerMultiMarker *tracker,
 	IplImage *tempImg = cvCreateImage(cvSize(width, height), img->depth, 1);
 	cvCvtColor(img, tempImg, CV_RGB2GRAY);
 	cvAdaptiveThreshold(tempImg, greyImg, 255.0, CV_ADAPTIVE_THRESH_GAUSSIAN_C,
-			CV_THRESH_BINARY, 171);
+			CV_THRESH_BINARY, 51);
 	numDetected = tracker->calc((unsigned char*) greyImg->imageData);
 
 	IplImage* new_img = cvCreateImage(cvSize(640, 480), greyImg->depth, greyImg->nChannels);

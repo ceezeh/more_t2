@@ -1,0 +1,12 @@
+sudo apt-get install build-essential checkinstall -y
+sudo apt-get build-dep yasm
+cd /opt
+wget http://www.tortall.net/projects/yasm/releases/yasm-1.2.0.tar.gz
+tar xzfv yasm-1.2.0.tar.gz
+cd yasm-1.2.0
+./configure
+make
+sudo checkinstall --pakdir "$HOME/Desktop" --pkgname yasm --pkgversion 1.2.0 \
+--backup=no --default
+
+

@@ -1,4 +1,4 @@
-!#/bin/bash
+#!/bin/bash
 
 #Works on Linux alone at the moment.
 

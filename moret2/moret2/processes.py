@@ -13,6 +13,13 @@ import shutil
 import numpy
 import struct
 from PIL import Image, ImageTk
+import psutil
+
+def kill(proc_pid):
+    process = psutil.Process(proc_pid)
+    for proc in process.children(recursive=True):
+        proc.kill()
+    process.kill()
 #------------Project Config Classes
 class ProjectStatus(Enum):
 	Pending = "Pending"
@@ -116,7 +123,9 @@ class Calibration(object):
 		target.close()
 class ProjectConfig(object):
 	def __init__ (self):
-		self.status = ProjectStatus.Pending
+		# self.status = ProjectStatus.Pending
+		self.init()
+	def init(self):
 		self.cameras = Cameras()
 		self.markersize =int()
 		self.dirname = str()
@@ -124,7 +133,7 @@ class ProjectConfig(object):
 	def configToXML(self):
 		configxml= Element( 'config' )
 		self.cameras.configToXML(configxml)
-		SubElement(configxml, 'status', value= self.status.value)
+		# SubElement(configxml, 'status', value= self.status.value)
 		SubElement(configxml, 'markersize', value= str(self.markersize))
 		SubElement(configxml, 'dirname', value= str(self.dirname))
 		jobsxml = SubElement(configxml, 'jobs')
@@ -138,7 +147,7 @@ class ProjectConfig(object):
 		self.cameras.readfromNode(camerasDOM)
 
 		self.markersize = int(document.find( 'markersize' ).attrib['value'])
-		self.status = ProjectStatus[document.find( 'status' ).attrib['value']]
+		# self.status = ProjectStatus[document.find( 'status' ).attrib['value']]
 		self.dirname = document.find( 'dirname' ).attrib['value']
 
 		for node in document.findall( 'jobs/job' ):
@@ -182,14 +191,14 @@ class RecordWorker(object):
 		self.worker = threading.Thread(target=self.recordVideo) 
 		self.worker.start()
 	def endall(self):
-		exit_codes = [p.terminate() for p in self.procList]
+		exit_codes = [p.kill() for p in self.procList]
 
 	def recordVideo(self):
 		jobpath = self.config.dirname + "/" + self.jobname
-		if os.path.exists(jobpath ):
-			pass
-		else:
-			os.mkdir( jobpath , 0755 )
+		if os.path.exists(jobpath):
+			shutil.rmtree(jobpath)
+		
+		os.mkdir( jobpath , 0755 )
 		
 		for cam in self.selectedCams:
 			# Get Address
@@ -229,9 +238,10 @@ class ProcessWorker(object):
 		self.worker.start()
 	def endall(self):
 		# os.killpg(pro.pid, signal.SIGTERM)
-
-		exit_codes = [os.killpg(p.pid, signal.SIGTERM) for p in self.procList]
 		self.endFlag = True
+		# exit_codes = [os.killpg(p.pid, signal.SIGTERM) for p in self.procList]
+		
+		exit_codes = [kill(p.pid) for p in self.procList]
 		self.procList =[]
 	def processVideo(self):
 		for jobname in self.jobnames:
@@ -244,13 +254,13 @@ class ProcessWorker(object):
 				outpath = jobpath + "/" + cam +"/vid.mov"
 				outpath = pipes.quote(outpath)
 				outpath ="{}".format(outpath)
-				cmd =  'ffmpeg  -i '+ vidpath+'  '+outpath+' -y && rm  '+vidpath
+				cmd =  'ffmpeg  -i '+ vidpath+'  '+outpath+' -y && rm '+vidpath
 				print cmd
 				proc = subprocess.Popen(cmd, universal_newlines=True, shell=True, executable="/bin/bash", stdin=subprocess.PIPE,preexec_fn=os.setsid)
 				self.procList.append(proc)
-			exit_codes = [p.wait() for p in self.procList]
-			if self.endFlag:
-				break
+				exit_codes = [p.wait() for p in self.procList]
+				if self.endFlag:
+					return
 
 			#New!! Undistort using matlab function
 			for cam in self.selectedCams:
@@ -267,8 +277,8 @@ class ProcessWorker(object):
 					proc = subprocess.Popen(cmd, universal_newlines=True, shell=True, executable="/bin/bash", stdin=subprocess.PIPE,preexec_fn=os.setsid)
 					self.procList.append(proc)
 				exit_codes = [p.wait() for p in self.procList]
-			if self.endFlag:
-				break
+				if self.endFlag:
+					return
 			#Create *.cal file.
 
 
@@ -309,12 +319,12 @@ class ProcessWorker(object):
 					print cmd
 				proc = subprocess.Popen(cmd,  universal_newlines=True, shell=True, executable="/bin/bash",preexec_fn=os.setsid)
 				self.procList.append(proc)
-				
+				if self.endFlag:
+					return
 				
 			exit_codes = [p.wait() for p in self.procList]
 			exit_cmds = [ os.remove(path) for path in calibrationFiles]
-			if self.endFlag:
-				break
+			
 
 class CameraPoseWorker(object):
 	def __init__(self, config, knownCam=None, unknownCam=None,markerID=None,jobname=None):

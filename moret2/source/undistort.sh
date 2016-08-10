@@ -15,12 +15,16 @@ mkdir -p "$imagepath" &&
 ffmpeg -r "$rate" -i "$vidnewpath" -qscale:v 2 "$imagepath"/image%010d.bmp &&
 
 #call matlab undistort function
-"./../packages/undistortimages/for_testing/run_undistortimages.sh" \
-/Applications/MATLAB_R2015a.app "$imagepath" \
-"./../packages/undistortimages/c1_paramstruct.mat" $rate &&
+
+"/Users/ceezeh/Documents/MATLAB/undistortimages/for_testing/run_undistortimages.sh" \
+/Applications/MATLAB_R2015b.app "$imagepath" \
+"./../packages/undistortimages/c1_paramstruct.mat" $rate
 
 
 #convert avi to mov
-ffmpeg -i "$imagepath/"vid.avi "$vidpath" &&
+ffmpeg -i "$imagepath/"vid.avi "$vidpath" 
 
+mkdir -p empty_dir/
+rsync -a --delete empty_dir/ "$imagepath"
 rm -rf "$imagepath"
+rm -rf empty_dir

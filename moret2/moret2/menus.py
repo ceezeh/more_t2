@@ -15,6 +15,7 @@ from processes import ProcessWorker
 from processes import CameraPoseWorker
 from processes import StreamerWorker
 from processes import PoseReader
+from processes import ProjectConfig
 import time
 from copy import deepcopy
 
@@ -155,9 +156,13 @@ class CameraDropDownMenu(tk.Menubutton):
 class CameraMenuInsertToList(CameraDropDownMenu):
 	def __init__(self, parent, listbox, config=None):
 		CameraDropDownMenu.__init__(self,parent,config)
+		self.listbox = listbox
 		for cam in self.cameraList:
-			self.menu.add_command(label=cam, command=lambda val=cam: listbox.insert(tk.END, val))
-
+			self.menu.add_command(label=cam, command=lambda val=cam: self.addCameraToList(val))
+			self.addCameraToList(cam)
+	def addCameraToList(self, val):
+		if (val not in  self.listbox.get(0, tk.END)):
+			 self.listbox.insert(tk.END, val)
 class CameraListFrame(tk.Frame):
 	def __init__(self, parent, fn=None):
 		tk.Frame.__init__(self, parent)
@@ -198,10 +203,12 @@ class JobListFrame(tk.Frame):
 		self.jobmenubutton.menu = tk.Menu(self.jobmenubutton, tearoff=0)
 		self.jobmenubutton['menu'] = self.jobmenubutton.menu
 		for job in self.config.jobs:
-			self.jobmenubutton.menu.add_command(label=job, command=lambda val=job: self.listbox.insert(tk.END, val))
+			self.jobmenubutton.menu.add_command(label=job, command=lambda val=job: self.addToJobList(val))
 
 		self.jobmenubutton.grid(row=6)
-
+	def addToJobList(self, val):
+		if (val not in  self.listbox.get(0, tk.END)):
+			 self.listbox.insert(tk.END, val)
 	def deleteFromJobList(self,joblist, fn=None):
 		if fn is not None:
 			fn()
@@ -275,8 +282,8 @@ class TrackerWidgetFrame(tk.Frame):
 	def stopprocessrequest(self):
 		try:
 			self.processWorker.endall()
-		except:
-			print "No process available to stop"
+		except Exception,e :
+			print str(e)
 		self.processButton.config(text="Process", command=self.processrequest)
 	def capturerequest(self):
 		name = tkSimpleDialog.askstring("Capture Name?", "Please type in the capture name")
@@ -288,7 +295,8 @@ class TrackerWidgetFrame(tk.Frame):
 		if (len(name)>0):
 			self.jobLabel.config(text=name)
 			# Add job to config
-			self.config.jobs.append(name)
+			if name not in self.config.jobs:
+				self.config.jobs.append(name)
 			self.currentjob = name
 			# G
 			self.recordWorker = RecordWorker(name, self.listbox.get(0,tk.END), self.config)
@@ -300,8 +308,8 @@ class TrackerWidgetFrame(tk.Frame):
 	def stopcapturerequest(self):
 		try:
 			self.recordWorker.endall()
-		except:
-			print "No process"
+		except Exception,e :
+			print str(e)
 		self.captureButton.config(text="Capture", command=self.capturerequest)
 
 	def joblist(self):
@@ -793,6 +801,7 @@ class MainMenu(tk.Menu):
 		options['filetypes'] = [('xml files', '.xml')]
 		filename = tkFileDialog.askopenfilename(**file_opt)
 		if len( filename ) > 0:
+			self.config.init()
 			self.config.readFile(filename)
 
 			print "Dirname is %s" % self.config.dirname

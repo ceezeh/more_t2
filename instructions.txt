@@ -13,7 +13,7 @@ add control to include *.so or *.dylib for either mac or linux
 Install tkinter: sudo apt-get install python-tk -y
 install pip using get-pip.py script
 install pillow: sudo pip install pillow
-install enum: cd dir && sudo python setup.py install
+install enum: sudo pip install enum34
 set permissions chmod u+x *
 Build live555:
 upgrade gcc to 4.7.0 at least.
